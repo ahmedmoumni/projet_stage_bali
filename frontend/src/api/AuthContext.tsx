@@ -22,10 +22,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<void> => {
+  const login = async (username: string, password: string): Promise<void> => {
     try {
       const response = await apiClient.post<AuthResponse>('/login', {
-        email,
+        username,
         password,
       });
 

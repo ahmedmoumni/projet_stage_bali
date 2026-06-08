@@ -2,8 +2,7 @@ export type UserRole = 'admin' | 'public';
 
 export interface User {
   id: number;
-  name: string;
-  email: string;
+  username: string;
   role: UserRole;
 }
 
@@ -13,7 +12,7 @@ export interface AuthResponse {
 }
 
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -22,6 +21,6 @@ export interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
 }

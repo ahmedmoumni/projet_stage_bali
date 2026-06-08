@@ -10,7 +10,7 @@ export const Dashboard = () => {
     if (user?.role === 'admin') {
       console.log('Admin connecté');
     } else {
-      console.log('Utilisateur connecté');
+      console.log('User connecté');
     }
   }, [user]);
 
@@ -31,8 +31,7 @@ export const Dashboard = () => {
         </div>
 
         <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2 text-left">
-          <p><span className="font-semibold">Nom:</span> {user?.name}</p>
-          <p><span className="font-semibold">Email:</span> {user?.email}</p>
+          <p><span className="font-semibold">Pseudo:</span> {user?.username}</p>
           <p><span className="font-semibold">Rôle:</span> {user?.role?.toUpperCase()}</p>
         </div>
 
