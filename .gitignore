@@ -1,0 +1,37 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/.env
+backend/.env.local
+backend/vendor/
+backend/node_modules/
+backend/storage/logs/
+backend/storage/cache/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# ML Service
+ml-service/venv/
+ml-service/__pycache__/
+ml-service/*.pyc
+ml-service/.env
+
+# Database
+*.sql
+database/dumps/
+
+# Logs
+logs/
+*.log

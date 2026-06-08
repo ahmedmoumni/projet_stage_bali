@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: nlp_knowledge_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-MySQL@Punggul2024!}
+      MYSQL_DATABASE: ${DB_DATABASE:-nlp_knowledge_db}
+      MYSQL_USER: ${DB_USER:-nlp_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-NLP@User123}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - nlp_network
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: nlp_knowledge_phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ${DB_USER:-nlp_user}
+      PMA_PASSWORD: ${DB_PASSWORD:-NLP@User123}
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    networks:
+      - nlp_network
+
+volumes:
+  mysql_data:
+
+networks:
+  nlp_network:
+    driver: bridge
