@@ -124,6 +124,3 @@ See `/docs` folder for detailed documentation on:
 - Token-based authentication with Sanctum
 - ML service runs on separate port (5000)
 
-## Author
-Development Team - Desa Punggul, Bali, Indonesia
-Date: June 2026

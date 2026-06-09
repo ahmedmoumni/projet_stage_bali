@@ -15,6 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('username')->unique();
             $table->string('password');
+            $table->integer('age')->nullable();
+            $table->string('email')->unique()->nullable();
+            $table->string('adresse')->nullable();
+            $table->string('numero')->nullable();
             $table->enum('role', ['admin', 'public'])->default('public');
             $table->rememberToken();
             $table->timestamps();
