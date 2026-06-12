@@ -35,6 +35,15 @@ export const Dashboard = () => {
           <p><span className="font-semibold">Rôle:</span> {user?.role?.toUpperCase()}</p>
         </div>
 
+        {user?.role === 'admin' && (
+          <button
+            onClick={() => navigate('/upload')}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition mb-3"
+          >
+            📤 Upload Document
+          </button>
+        )}
+
         <button
           onClick={handleLogout}
           className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"

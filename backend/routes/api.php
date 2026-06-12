@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\DocumentController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -15,4 +16,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // Document routes (admin only)
+    Route::post('/documents/upload', [DocumentController::class, 'upload']);
+    Route::get('/documents', [DocumentController::class, 'index']);
+    Route::get('/documents/{id}', [DocumentController::class, 'show']);
 });
