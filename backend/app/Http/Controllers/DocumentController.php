@@ -27,7 +27,7 @@ class DocumentController extends Controller
         // Validate the uploaded file
         try {
             $validated = $request->validate([
-                'file' => 'required|file|mimes:pdf,csv,xlsx,xls|max:10240', // 10MB
+                'file' => 'required|file|mimes:pdf,csv,xlsx,xls|max:51200', // 50MB
                 'visibility' => 'sometimes|in:public,private'
             ]);
         } catch (ValidationException $e) {

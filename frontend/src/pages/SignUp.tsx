@@ -45,7 +45,7 @@ export const SignUp = () => {
       navigate('/');
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 
-        'Erreur lors de l\'inscription';
+        'Registration error';
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -58,7 +58,7 @@ export const SignUp = () => {
       <div className="signup-header">
         <div className="signup-header-content">
           <h1>NLP Knowledge</h1>
-          <p>S'inscrire</p>
+          <p>Sign Up</p>
         </div>
       </div>
 
@@ -78,14 +78,14 @@ export const SignUp = () => {
             <div className="signup-grid">
               {/* Pseudo */}
               <div className="signup-field">
-                <label htmlFor="pseudo">Pseudo</label>
+                <label htmlFor="pseudo">Username</label>
                 <input
                   id="pseudo"
                   type="text"
                   name="pseudo"
                   value={formData.pseudo}
                   onChange={handleChange}
-                  placeholder="Votre pseudo"
+                  placeholder="Your username"
                   required
                 />
               </div>
@@ -99,7 +99,7 @@ export const SignUp = () => {
                   name="age"
                   value={formData.age}
                   onChange={handleChange}
-                  placeholder="Votre age"
+                  placeholder="Your age"
                   required
                   min="1"
                   max="120"
@@ -115,35 +115,35 @@ export const SignUp = () => {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="Votre email"
+                  placeholder="Your email"
                   required
                 />
               </div>
 
-              {/* Adresse */}
+              {/* Address */}
               <div className="signup-field">
-                <label htmlFor="adresse">Adresse</label>
+                <label htmlFor="adresse">Address</label>
                 <input
                   id="adresse"
                   type="text"
                   name="adresse"
                   value={formData.adresse}
                   onChange={handleChange}
-                  placeholder="Votre adresse"
+                  placeholder="Your address"
                   required
                 />
               </div>
 
-              {/* Numero */}
+              {/* Phone */}
               <div className="signup-field">
-                <label htmlFor="numero">Numero</label>
+                <label htmlFor="numero">Phone</label>
                 <input
                   id="numero"
                   type="tel"
                   name="numero"
                   value={formData.numero}
                   onChange={handleChange}
-                  placeholder="Votre numero"
+                  placeholder="Your phone number"
                   required
                 />
               </div>
@@ -151,14 +151,14 @@ export const SignUp = () => {
 
             {/* Password - Full Width */}
             <div className="signup-field signup-full">
-              <label htmlFor="password">Mot de passe</label>
+              <label htmlFor="password">Password</label>
               <input
                 id="password"
                 type="text"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                placeholder="Entrez votre mot de passe"
+                placeholder="Enter your password"
                 required
                 minLength={6}
               />
@@ -166,16 +166,16 @@ export const SignUp = () => {
 
             {/* Submit Button */}
             <button type="submit" disabled={isLoading} className="signup-btn">
-              {isLoading ? 'Inscription en cours...' : 'S\'inscrire'}
+              {isLoading ? 'Signing up...' : 'Sign Up'}
             </button>
           </form>
 
           {/* Login Link */}
           <div className="signup-footer">
             <p>
-              Vous avez déjà un compte?
+              Already have an account?
               <button onClick={() => navigate('/')} className="signup-footer-link">
-                Se connecter
+                Sign In
               </button>
             </p>
           </div>

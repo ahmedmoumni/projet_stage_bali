@@ -49,17 +49,34 @@ export const Upload: React.FC = () => {
     setResponse(null);
 
     try {
+      // Log token and user info
+      const token = localStorage.getItem('token');
+      console.log('Upload attempt:', {
+        token: token ? 'Present' : 'Missing',
+        tokenLength: token?.length,
+        user: user?.username,
+        userRole: user?.role,
+        file: file.name,
+        visibility
+      });
+
       const result = await documentAPI.upload(file, visibility);
+      console.log('Upload success:', result.data);
       setResponse(result.data);
       setFile(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     } catch (err: any) {
+      console.error('Upload error:', {
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        fullError: err.response?.data
+      });
       setError(
         err.response?.data?.message ||
         err.response?.data?.errors?.file?.[0] ||
-        'Erreur lors du téléchargement. Veuillez réessayer.'
+        'Error during upload. Please try again.'
       );
       setResponse(null);
     } finally {
@@ -130,7 +147,7 @@ export const Upload: React.FC = () => {
         <div className="upload-header">
           <div className="upload-header-content">
             <h1>Upload Document</h1>
-            <p>Traitement NLP - Desa Punggul</p>
+            <p>NLP Processing - Desa Punggul</p>
           </div>
         </div>
 
@@ -148,7 +165,7 @@ export const Upload: React.FC = () => {
 
           {!file && !response && (
             <>
-              <p className="upload-label">Sélectionnez un fichier PDF, CSV ou Excel</p>
+              <p className="upload-label">Select a PDF, CSV or Excel file</p>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="upload-btn"
@@ -164,7 +181,7 @@ export const Upload: React.FC = () => {
               <p className="upload-file-selected">{file.name}</p>
               
               <div className="upload-visibility">
-                <p className="upload-visibility-label">Visibilité</p>
+                <p className="upload-visibility-label">Visibility</p>
                 <div className="upload-visibility-options">
                   <label className="upload-radio-label">
                     <input
@@ -175,7 +192,7 @@ export const Upload: React.FC = () => {
                       onChange={(e) => setVisibility(e.target.value as Visibility)}
                       disabled={loading}
                     />
-                    <span>Privé</span>
+                    <span>Private</span>
                   </label>
                   <label className="upload-radio-label">
                     <input
@@ -197,7 +214,7 @@ export const Upload: React.FC = () => {
                   disabled={loading}
                   className="upload-btn"
                 >
-                  {loading ? 'Traitement...' : 'Upload'}
+                  {loading ? 'Processing...' : 'Upload'}
                 </button>
                 <button
                   onClick={() => {
@@ -208,7 +225,7 @@ export const Upload: React.FC = () => {
                   className="upload-btn-secondary"
                   disabled={loading}
                 >
-                  Annuler
+                  Cancel
                 </button>
               </div>
             </>
@@ -216,7 +233,7 @@ export const Upload: React.FC = () => {
 
           {error && (
             <div className="upload-error">
-              <p><strong>Erreur</strong></p>
+              <p><strong>Error</strong></p>
               <p>{error}</p>
             </div>
           )}
@@ -235,7 +252,7 @@ export const Upload: React.FC = () => {
             {/* Log */}
             <div className="upload-log">
               <div className="upload-log-header">
-                <h3>Journal de traitement</h3>
+                <h3>Processing Log</h3>
               </div>
               <div className="upload-log-content">
                 {response.log.map((logEntry, index) => (
@@ -249,7 +266,7 @@ export const Upload: React.FC = () => {
             {/* Details */}
             <div className="upload-details">
               <div className="upload-detail-item">
-                <p className="upload-detail-label">Type de fichier</p>
+                <p className="upload-detail-label">File Type</p>
                 <p className="upload-detail-value">{response.file_type.replace(/_/g, ' ').toUpperCase()}</p>
               </div>
               <div className="upload-detail-item">
@@ -258,7 +275,7 @@ export const Upload: React.FC = () => {
               </div>
               {response.text_preview && (
                 <div className="upload-detail-item upload-detail-full">
-                  <p className="upload-detail-label">Aperçu du texte</p>
+                  <p className="upload-detail-label">Text Preview</p>
                   <p className="upload-detail-preview">{response.text_preview}</p>
                 </div>
               )}
@@ -274,7 +291,7 @@ export const Upload: React.FC = () => {
               }}
               className="upload-btn upload-btn-full"
             >
-              Uploader un autre document
+              Upload Another Document
             </button>
           </div>
         )}

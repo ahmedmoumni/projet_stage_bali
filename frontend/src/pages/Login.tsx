@@ -22,7 +22,7 @@ export const Login = () => {
       navigate('/dashboard');
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 
-        'Identifiants incorrects';
+        'Invalid credentials';
       setError(errorMessage);
       setPassword('');
     } finally {
@@ -54,42 +54,42 @@ export const Login = () => {
           <form onSubmit={handleSubmit} className="login-form">
             {/* Username Field */}
             <div className="login-field">
-              <label htmlFor="username">Pseudo</label>
+              <label htmlFor="username">Username</label>
               <input
                 id="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Entrez votre pseudo"
+                placeholder="Enter your username"
                 required
               />
             </div>
 
             {/* Password Field */}
             <div className="login-field">
-              <label htmlFor="password">Mot de passe</label>
+              <label htmlFor="password">Password</label>
               <input
                 id="password"
                 type="text"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Entrez votre mot de passe"
+                placeholder="Enter your password"
                 required
               />
             </div>
 
             {/* Submit Button */}
             <button type="submit" disabled={isLoading} className="login-btn">
-              {isLoading ? 'Connexion en cours...' : 'Se connecter'}
+              {isLoading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
 
           {/* Sign Up Link */}
           <div className="login-footer">
             <p>
-              Vous n'avez pas de compte?
+              Don't have an account?
               <button onClick={() => navigate('/signup')} className="login-footer-link">
-                S'inscrire
+                Sign Up
               </button>
             </p>
           </div>

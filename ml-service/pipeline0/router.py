@@ -118,7 +118,7 @@ def route_document(filename, file_content, file_type):
     log = []
     
     try:
-        log.append(f"✅ File received: {filename}")
+        log.append(f" File received: {filename}")
         
         # Route based on file type
         if file_type == 'pdf':
@@ -134,11 +134,11 @@ def route_document(filename, file_content, file_type):
                 'pages': 0,
                 'text_preview': '',
                 'reason': 'Unknown file type',
-                'log': log + ['❌ Unknown file type']
+                'log': log + [' Unknown file type']
             }
     
     except Exception as e:
-        log.append(f"❌ Error processing file: {str(e)}")
+        log.append(f" Error processing file: {str(e)}")
         return {
             'file_type': 'unknown',
             'routing': 'rejected',
@@ -157,12 +157,12 @@ def route_pdf(filename, file_content, log):
     # Step 2: Content check - minimum 100 characters
     if len(text.strip()) < 100:
         if not is_scanned:
-            log.append("✅ Content check passed (sufficient for OCR attempt)")
+            log.append("Content check passed (sufficient for OCR attempt)")
             # Try OCR on what looks like scanned
             try:
                 ocr_text, ocr_pages = extract_text_from_scanned_pdf(file_content)
                 if len(ocr_text.strip()) < 100:
-                    log.append("❌ Document rejected — insufficient content even after OCR")
+                    log.append(" Document rejected — insufficient content even after OCR")
                     return {
                         'file_type': 'pdf_scanned',
                         'routing': 'rejected',
@@ -175,7 +175,7 @@ def route_pdf(filename, file_content, log):
                 pages = ocr_pages
                 is_scanned = True
             except:
-                log.append("❌ Document rejected — insufficient content")
+                log.append(" Document rejected — insufficient content")
                 return {
                     'file_type': 'pdf_native',
                     'routing': 'rejected',
@@ -189,7 +189,7 @@ def route_pdf(filename, file_content, log):
             try:
                 text, pages = extract_text_from_scanned_pdf(file_content)
                 if len(text.strip()) < 100:
-                    log.append("❌ Document rejected — insufficient content after OCR")
+                    log.append(" Document rejected — insufficient content after OCR")
                     return {
                         'file_type': 'pdf_scanned',
                         'routing': 'rejected',
@@ -199,7 +199,7 @@ def route_pdf(filename, file_content, log):
                         'log': log
                     }
             except Exception as e:
-                log.append(f"❌ OCR failed: {str(e)}")
+                log.append(f" OCR failed: {str(e)}")
                 return {
                     'file_type': 'pdf_scanned',
                     'routing': 'rejected',
@@ -209,30 +209,30 @@ def route_pdf(filename, file_content, log):
                     'log': log
                 }
     
-    log.append(f"✅ Content check passed ({len(text.strip())} chars)")
+    log.append(f" Content check passed ({len(text.strip())} chars)")
     
     # Step 2: Scan detection
     if is_scanned:
-        log.append("✅ PDF detected as scanned")
+        log.append(" PDF detected as scanned")
         file_type_result = 'pdf_scanned'
-        log.append("✅ OCR applied successfully")
+        log.append("OCR applied successfully")
         routing_result = 'ocr_then_pipeline1'
     else:
-        log.append("✅ Native PDF detected — no OCR needed")
+        log.append(" Native PDF detected — no OCR needed")
         file_type_result = 'pdf_native'
         
         # Step 3: Type detection - check for tables
         has_tables = check_has_tables_with_columns(file_content)
         if has_tables:
-            log.append("✅ Structured data (tables) detected")
+            log.append(" Structured data (tables) detected")
             routing_result = 'pipeline2_direct'
         else:
-            log.append("✅ Narrative text detected")
+            log.append(" Narrative text detected")
             routing_result = 'pipeline1'
     
     text_preview = text[:200] if text else ""
     
-    log.append(f"✅ Routed to {routing_result.replace('_', ' ').title()}")
+    log.append(f" Routed to {routing_result.replace('_', ' ').title()}")
     
     return {
         'file_type': file_type_result,
@@ -247,9 +247,9 @@ def route_csv(filename, file_content, log):
     """Route CSV documents"""
     try:
         text = extract_text_from_csv(file_content)
-        log.append(f"✅ CSV file processed ({len(text)} chars)")
-        log.append("✅ Structured data detected")
-        log.append("✅ Routed to Pipeline 2")
+        log.append(f"CSV file processed ({len(text)} chars)")
+        log.append("Structured data detected")
+        log.append(" Routed to Pipeline 2")
         
         text_preview = text[:200] if text else ""
         
@@ -276,9 +276,9 @@ def route_excel(filename, file_content, log):
     """Route Excel documents"""
     try:
         text = extract_text_from_excel(file_content)
-        log.append(f"✅ Excel file processed ({len(text)} chars)")
-        log.append("✅ Structured data detected")
-        log.append("✅ Routed to Pipeline 2")
+        log.append(f" Excel file processed ({len(text)} chars)")
+        log.append("Structured data detected")
+        log.append(" Routed to Pipeline 2")
         
         text_preview = text[:200] if text else ""
         
@@ -290,7 +290,7 @@ def route_excel(filename, file_content, log):
             'log': log
         }
     except Exception as e:
-        log.append(f"❌ Error processing Excel: {str(e)}")
+        log.append(f" Error processing Excel: {str(e)}")
         return {
             'file_type': 'excel',
             'routing': 'rejected',

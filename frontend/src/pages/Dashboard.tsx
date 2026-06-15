@@ -57,7 +57,7 @@ export const Dashboard = () => {
             onClick={handleLogout}
             className="dashboard-logout-btn"
           >
-            Déconnexion
+            Logout
           </button>
         </div>
 
