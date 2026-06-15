@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../api/AuthContext';
+import './Dashboard.css';
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (user?.role === 'admin') {
@@ -19,37 +21,49 @@ export const Dashboard = () => {
     navigate('/');
   };
 
+  const isActive = (path: string) => location.pathname === path ? 'active' : '';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">Bienvenue!</h1>
-
-        <div className="bg-green-100 border border-green-300 rounded-lg p-4 mb-6">
-          <p className="text-green-800 font-semibold">
-            {user?.role === 'admin' ? 'Admin connecté' : 'Utilisateur connecté'}
-          </p>
+    <div className="dashboard-container">
+      {/* Sidebar Navigation */}
+      <div className="dashboard-sidebar">
+        <div className="dashboard-sidebar-title">
+          <h3>Menu</h3>
         </div>
+        <ul className="dashboard-sidebar-menu">
+          <li className="dashboard-sidebar-item">
+            <a href="/dashboard" className={`dashboard-sidebar-link ${isActive('/dashboard')}`}>
+              Dashboard
+            </a>
+          </li>
+          {user?.role === 'admin' && (
+            <li className="dashboard-sidebar-item">
+              <a href="/upload" className={`dashboard-sidebar-link ${isActive('/upload')}`}>
+                Upload
+              </a>
+            </li>
+          )}
+        </ul>
+      </div>
 
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2 text-left">
-          <p><span className="font-semibold">Pseudo:</span> {user?.username}</p>
-          <p><span className="font-semibold">Rôle:</span> {user?.role?.toUpperCase()}</p>
-        </div>
-
-        {user?.role === 'admin' && (
+      {/* Main Content */}
+      <div className="dashboard-main">
+        {/* Header */}
+        <div className="dashboard-header">
+          <div className={`dashboard-role-badge ${user?.role === 'admin' ? 'admin' : 'user'}`}>
+            {user?.role?.toUpperCase()}
+          </div>
           <button
-            onClick={() => navigate('/upload')}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition mb-3"
+            onClick={handleLogout}
+            className="dashboard-logout-btn"
           >
-            📤 Upload Document
+            Déconnexion
           </button>
-        )}
+        </div>
 
-        <button
-          onClick={handleLogout}
-          className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"
-        >
-          Déconnexion
-        </button>
+        {/* Content */}
+        <div className="dashboard-content">
+        </div>
       </div>
     </div>
   );

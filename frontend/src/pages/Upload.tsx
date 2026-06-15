@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../api/AuthContext';
 import { documentAPI } from '../services/api';
 import type { UploadResponse, Visibility } from '../types/index';
@@ -8,6 +8,7 @@ import './Upload.css';
 export const Upload: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [file, setFile] = useState<File | null>(null);
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -98,19 +99,44 @@ export const Upload: React.FC = () => {
 
   const alertStyles = response ? getAlertStyles(response.routing) : null;
 
+  const isActive = (path: string) => location.pathname === path ? 'active' : '';
+
   return (
     <div className="upload-container">
-      {/* Header */}
-      <div className="upload-header">
-        <div className="upload-header-content">
-          <h1>Upload Document</h1>
-          <p>Traitement NLP - Desa Punggul</p>
+      {/* Sidebar Navigation */}
+      <div className="upload-sidebar">
+        <div className="upload-sidebar-title">
+          <h3>Menu</h3>
         </div>
+        <ul className="upload-sidebar-menu">
+          <li className="upload-sidebar-item">
+            <a href="/dashboard" className={`upload-sidebar-link ${isActive('/dashboard')}`}>
+              Dashboard
+            </a>
+          </li>
+          {user?.role === 'admin' && (
+            <li className="upload-sidebar-item">
+              <a href="/upload" className={`upload-sidebar-link ${isActive('/upload')}`}>
+                Upload
+              </a>
+            </li>
+          )}
+        </ul>
       </div>
 
       {/* Main Content */}
       <div className="upload-main">
-        <div className="upload-card">
+        {/* Header */}
+        <div className="upload-header">
+          <div className="upload-header-content">
+            <h1>Upload Document</h1>
+            <p>Traitement NLP - Desa Punggul</p>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="upload-main-content">
+          <div className="upload-card">
           <input
             ref={fileInputRef}
             type="file"
@@ -252,15 +278,8 @@ export const Upload: React.FC = () => {
             </button>
           </div>
         )}
+        </div>
       </div>
-
-      {/* Back to Dashboard */}
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="upload-back-btn"
-      >
-        Retour au Dashboard
-      </button>
     </div>
   );
 };
