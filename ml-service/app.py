@@ -3,14 +3,26 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from pipeline0.router import route_document
+from pipeline1 import extract_pipeline1, init_db
 
 load_dotenv()
 
 app = Flask(__name__)
 
+# Initialize Pipeline 1 database
+try:
+    init_db()
+except Exception as e:
+    print(f"⚠️  Database initialization: {str(e)}")
+
 # Enable CORS for React frontend
 CORS(app, resources={
     r"/pipeline0/*": {
+        "origins": [os.getenv("LARAVEL_URL", "http://localhost:8000")],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    },
+    r"/pipeline1/*": {
         "origins": [os.getenv("LARAVEL_URL", "http://localhost:8000")],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
@@ -98,8 +110,38 @@ def document_router():
 
 @app.route('/api/pipeline/extract', methods=['POST'])
 def knowledge_extraction():
-    """Pipeline 1: Knowledge Extraction"""
-    return {'message': 'Knowledge extraction not implemented yet'}, 501
+    """
+    Pipeline 1: Knowledge Extraction
+    POST /api/pipeline/extract
+    
+    Receives text from Pipeline 0 and extracts IF-THEN rules and facts.
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'text' not in data:
+            return {
+                'error': 'No text provided',
+                'rules_extracted': 0,
+                'facts_extracted': 0,
+                'log': ['❌ Missing text field']
+            }, 400
+        
+        text = data['text']
+        document_id = data.get('document_id', None)
+        
+        # Extract knowledge using Pipeline 1
+        result = extract_pipeline1(text, document_id)
+        
+        return result, 200
+    
+    except Exception as e:
+        return {
+            'error': str(e),
+            'rules_extracted': 0,
+            'facts_extracted': 0,
+            'log': [f'❌ Server error: {str(e)}']
+        }, 500
 
 
 @app.route('/api/pipeline/classify', methods=['POST'])

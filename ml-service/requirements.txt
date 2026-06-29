@@ -4,6 +4,7 @@ Flask-CORS==6.0.2
 
 # Database
 PyMySQL==1.1.0
+SQLAlchemy==2.0.23
 
 # NLP & ML
 spacy==3.8.14
@@ -20,11 +21,8 @@ Pillow==12.2.0
 pandas==2.2.3
 openpyxl==3.1.5
 
-# Configuration & Utils
-python-dotenv==1.2.2
-
-# API
-requests==2.34.2
+# LLM Integration
+anthropic==0.25.1
 
 # Werkzeug for file handling
 Werkzeug==3.1.3
