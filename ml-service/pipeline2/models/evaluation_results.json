@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-06-29T05:10:04.241102",
+  "training_samples": 25,
+  "naive_bayes": {
+    "macro_f1": 0.9466666666666667,
+    "macro_f1_std": 0.10666666666666669,
+    "macro_precision": 0.9400000000000001,
+    "macro_recall": 0.96
+  },
+  "decision_tree": {
+    "macro_f1": 0.5493333333333333,
+    "macro_f1_std": 0.17036431551237483,
+    "macro_precision": 0.5166666666666666,
+    "macro_recall": 0.64
+  },
+  "selected_algorithm": "naive_bayes",
+  "best_macro_f1": 0.9466666666666667
+}

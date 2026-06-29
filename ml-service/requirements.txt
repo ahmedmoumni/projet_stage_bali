@@ -9,7 +9,8 @@ SQLAlchemy==2.0.23
 # NLP & ML
 spacy==3.8.14
 scikit-learn==1.9.0
-numpy==2.4.6
+numpy==1.26.4
+joblib==1.4.2
 
 # PDF Processing
 pdfplumber==0.10.4
@@ -22,7 +23,7 @@ pandas==2.2.3
 openpyxl==3.1.5
 
 # LLM Integration
-anthropic==0.25.1
-
-# Werkzeug for file handling
-Werkzeug==3.1.3
+groq==0.4.2
+langchain-groq==0.1.5
+langchain==0.1.20
+python-dotenv==1.0.0

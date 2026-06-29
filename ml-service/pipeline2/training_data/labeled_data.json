@@ -1,0 +1,31 @@
+[
+  {"text": "Village governance committee meetings held monthly to discuss community affairs and administrative issues", "domain": "social"},
+  {"text": "Youth group organizes cultural events and community gathering for social bonding", "domain": "social"},
+  {"text": "Community members participate in mutual assistance for house repairs and construction projects", "domain": "social"},
+  {"text": "Women's cooperative group conducts skills training and educational workshops for community development", "domain": "social"},
+  {"text": "Neighborhood watch program established to ensure community safety and security", "domain": "social"},
+  
+  {"text": "Rice farmers earn average income of 2-3 million IDR per harvest season", "domain": "economy"},
+  {"text": "Coconut plantation generates revenue through copra and coconut oil production", "domain": "economy"},
+  {"text": "Tourism business provides employment opportunity with average wage 1.5 million IDR per month", "domain": "economy"},
+  {"text": "Coffee plantation produces 500 kg per year with market value around 4 million IDR", "domain": "economy"},
+  {"text": "Cattle farming supports livelihoods with income from milk sales and breeding", "domain": "economy"},
+  
+  {"text": "Main road requires maintenance and repair every monsoon season", "domain": "infrastructure"},
+  {"text": "Water supply system serves 95 percent of households with daily distribution", "domain": "infrastructure"},
+  {"text": "Electricity network coverage reaches all villages with 24-hour service availability", "domain": "infrastructure"},
+  {"text": "Irrigation canals distribute water from main source to agricultural fields", "domain": "infrastructure"},
+  {"text": "Bridge construction project connects remote villages to main transportation network", "domain": "infrastructure"},
+  
+  {"text": "Health clinic operates with staff of 3 nurses and 1 midwife providing basic healthcare", "domain": "health"},
+  {"text": "Vaccination program achieves 90 percent coverage among children under five years", "domain": "health"},
+  {"text": "Maternal health initiative reduces pregnancy complications through prenatal care", "domain": "health"},
+  {"text": "Sanitation awareness campaign improves hygiene practices and reduces waterborne diseases", "domain": "health"},
+  {"text": "Health workers conduct regular medical checkups and disease surveillance activities", "domain": "health"},
+  
+  {"text": "Traditional dance performance Legong is performed during village ceremonies and festivals", "domain": "culture_art"},
+  {"text": "Balinese temple celebrates annual festival with religious ceremonies and cultural programs", "domain": "culture_art"},
+  {"text": "Local artisans produce traditional handicrafts including wood carving and weaving", "domain": "culture_art"},
+  {"text": "Traditional music ensemble performs gamelan during wedding ceremonies and celebrations", "domain": "culture_art"},
+  {"text": "Cultural heritage preservation project documents traditional knowledge and practices for younger generation", "domain": "culture_art"}
+]

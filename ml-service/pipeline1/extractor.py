@@ -10,7 +10,7 @@ import json
 import os
 from typing import List, Dict, Tuple, Optional
 from dotenv import load_dotenv
-from langchain_groq import ChatGroq
+from groq import Groq
 from datetime import datetime
 from .models import (
     get_session, KnowledgeRule, RuleConditionFact, RuleActionFact,
@@ -27,11 +27,28 @@ except OSError:
     print(" spaCy model not found. Run: python -m spacy download en_core_web_sm")
     nlp = None
 
-# Initialize Groq client with LangChain
+# Initialize Groq client directly
 groq_api_key = os.getenv("GROQ_API_KEY")
 if not groq_api_key:
     print("⚠️  GROQ_API_KEY not set in .env file")
-llm = ChatGroq(temperature=0, model_name="openai/gpt-oss-120b", api_key=groq_api_key)
+    groq_api_key = ""
+
+# Lazy initialization
+_groq_client = None
+
+def get_groq_client():
+    """Get or initialize Groq client"""
+    global _groq_client
+    if _groq_client is None:
+        try:
+            _groq_client = Groq(api_key=groq_api_key)
+        except Exception as e:
+            print(f"⚠️  Failed to initialize Groq client: {str(e)}")
+            _groq_client = None
+    return _groq_client
+
+client = None  # Will be set on first use
+
 
 # Stop words to remove
 STOP_WORDS = {
@@ -190,13 +207,24 @@ class KnowledgeExtractor:
     def _llm_detect_type(self, sentence: str) -> Optional[str]:
         """Use Groq API to detect knowledge type"""
         try:
+            groq_client = get_groq_client()
+            if not groq_client:
+                self.log(f"    Groq client not available")
+                return None
+            
             prompt = f"""Classify this sentence as either 'rule' (if-then statement) or 'fact' (declarative statement).
 Respond with only the word 'rule' or 'fact'.
 
 Sentence: {sentence}"""
 
-            response = llm.invoke(prompt)
-            result = response.content.strip().lower()
+            response = groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=10
+            )
+            
+            result = response.choices[0].message.content.strip().lower()
             return 'rule' if 'rule' in result else 'fact' if 'fact' in result else None
 
         except Exception as e:
@@ -394,8 +422,19 @@ Format:
 
 Sentence: {sentence}"""
 
-            response = llm.invoke(prompt)
-            result_text = response.content.strip()
+            groq_client = get_groq_client()
+            if not groq_client:
+                self.log(f"  Groq client not available")
+                return None
+            
+            response = groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=500
+            )
+            
+            result_text = response.choices[0].message.content.strip()
 
             # Try to parse JSON
             try:
@@ -430,8 +469,19 @@ Format:
 
 Sentence: {sentence}"""
 
-            response = llm.invoke(prompt)
-            result_text = response.content.strip()
+            groq_client = get_groq_client()
+            if not groq_client:
+                self.log(f"  Groq client not available")
+                return None
+            
+            response = groq_client.chat.completions.create(
+                model="mixtral-8x7b-32768",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0,
+                max_tokens=300
+            )
+            
+            result_text = response.choices[0].message.content.strip()
 
             try:
                 extracted = json.loads(result_text)
