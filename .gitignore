@@ -35,3 +35,5 @@ database/dumps/
 # Logs
 logs/
 *.log
+__pycache__/
+*.pyc
