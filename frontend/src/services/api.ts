@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
-import type { AuthResponse, LoginRequest, RegisterRequest, UploadResponse, DocumentListResponse, DocumentDetailResponse } from '../types/index';
+import type { AuthResponse, LoginRequest, RegisterRequest, UploadResponse, DocumentListResponse, DocumentDetailResponse, KnowledgeRule, KnowledgeFact, PaginatedResponse } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -90,6 +90,34 @@ export const documentAPI = {
 
   get: (id: number) =>
     api.get<DocumentDetailResponse>(`/documents/${id}`),
+};
+
+// Knowledge Rules endpoints
+export const rulesAPI = {
+  list: (page?: number, search?: string, domain?: string, visibility?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (search) params.append('search', search);
+    if (domain) params.append('domain', domain);
+    if (visibility) params.append('visibility', visibility);
+    if (status) params.append('status', status);
+
+    return api.get<PaginatedResponse<KnowledgeRule>>(`/rules?${params.toString()}`);
+  },
+};
+
+// Knowledge Facts endpoints
+export const factsAPI = {
+  list: (page?: number, search?: string, domain?: string, visibility?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (search) params.append('search', search);
+    if (domain) params.append('domain', domain);
+    if (visibility) params.append('visibility', visibility);
+    if (status) params.append('status', status);
+
+    return api.get<PaginatedResponse<KnowledgeFact>>(`/facts?${params.toString()}`);
+  },
 };
 
 export default api;

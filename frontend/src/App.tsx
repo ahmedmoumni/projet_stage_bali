@@ -5,6 +5,8 @@ import { Login } from './pages/Login';
 import { SignUp } from './pages/SignUp';
 import { Dashboard } from './pages/Dashboard';
 import { Upload } from './pages/Upload';
+import { KnowledgeRules } from './pages/KnowledgeRules';
+import { KnowledgeFacts } from './pages/KnowledgeFacts';
 import './App.css';
 
 function App() {
@@ -27,6 +29,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Upload />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rules"
+            element={
+              <ProtectedRoute>
+                <KnowledgeRules />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/facts"
+            element={
+              <ProtectedRoute>
+                <KnowledgeFacts />
               </ProtectedRoute>
             }
           />

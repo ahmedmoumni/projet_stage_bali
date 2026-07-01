@@ -131,6 +131,16 @@ export const Upload: React.FC = () => {
               Dashboard
             </a>
           </li>
+          <li className="upload-sidebar-item">
+            <a href="/rules" className={`upload-sidebar-link ${isActive('/rules')}`}>
+              Knowledge Rules
+            </a>
+          </li>
+          <li className="upload-sidebar-item">
+            <a href="/facts" className={`upload-sidebar-link ${isActive('/facts')}`}>
+              Knowledge Facts
+            </a>
+          </li>
           {user?.role === 'admin' && (
             <li className="upload-sidebar-item">
               <a href="/upload" className={`upload-sidebar-link ${isActive('/upload')}`}>

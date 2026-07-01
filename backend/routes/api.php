@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\KnowledgeRuleController;
+use App\Http\Controllers\KnowledgeFactController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +18,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // Knowledge routes
+    Route::get('/rules', [KnowledgeRuleController::class, 'index']);
+    Route::get('/facts', [KnowledgeFactController::class, 'index']);
 
     // Document routes (admin only)
     Route::post('/documents/upload', [DocumentController::class, 'upload']);
