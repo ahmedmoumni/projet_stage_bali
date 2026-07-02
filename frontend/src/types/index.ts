@@ -128,3 +128,22 @@ export interface KnowledgeFact {
   values: FactValue[];
 }
 
+// Pending Review Types
+export interface PendingItem {
+  id: number;
+  type: 'rule' | 'fact';
+  source_text: string;
+  subject?: string;
+  relation?: string;
+  domain: Domain | null;
+  visibility: Visibility;
+  confidence_score: number;
+  extraction_method: ExtractionMethod;
+  created_at: string;
+}
+
+export interface EditPayload {
+  source_text: string;
+  domain: Domain | null;
+  visibility: Visibility;
+}

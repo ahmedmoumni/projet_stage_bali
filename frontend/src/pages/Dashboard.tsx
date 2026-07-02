@@ -47,11 +47,18 @@ export const Dashboard = () => {
             </a>
           </li>
           {user?.role === 'admin' && (
-            <li className="dashboard-sidebar-item">
-              <a href="/upload" className={`dashboard-sidebar-link ${isActive('/upload')}`}>
-                Upload
-              </a>
-            </li>
+            <>
+              <li className="dashboard-sidebar-item">
+                <a href="/pending-review" className={`dashboard-sidebar-link ${isActive('/pending-review')}`}>
+                  Pending Review
+                </a>
+              </li>
+              <li className="dashboard-sidebar-item">
+                <a href="/upload" className={`dashboard-sidebar-link ${isActive('/upload')}`}>
+                  Upload
+                </a>
+              </li>
+            </>
           )}
         </ul>
       </div>

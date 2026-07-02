@@ -142,11 +142,18 @@ export const Upload: React.FC = () => {
             </a>
           </li>
           {user?.role === 'admin' && (
-            <li className="upload-sidebar-item">
-              <a href="/upload" className={`upload-sidebar-link ${isActive('/upload')}`}>
-                Upload
-              </a>
-            </li>
+            <>
+              <li className="upload-sidebar-item">
+                <a href="/pending-review" className={`upload-sidebar-link ${isActive('/pending-review')}`}>
+                  Pending Review
+                </a>
+              </li>
+              <li className="upload-sidebar-item">
+                <a href="/upload" className={`upload-sidebar-link ${isActive('/upload')}`}>
+                  Upload
+                </a>
+              </li>
+            </>
           )}
         </ul>
       </div>

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
-import type { AuthResponse, LoginRequest, RegisterRequest, UploadResponse, DocumentListResponse, DocumentDetailResponse, KnowledgeRule, KnowledgeFact, PaginatedResponse } from '../types/index';
+import type { AuthResponse, LoginRequest, RegisterRequest, UploadResponse, DocumentListResponse, DocumentDetailResponse, KnowledgeRule, KnowledgeFact, PaginatedResponse, PendingItem, EditPayload } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -118,6 +118,27 @@ export const factsAPI = {
 
     return api.get<PaginatedResponse<KnowledgeFact>>(`/facts?${params.toString()}`);
   },
+};
+
+// Pending Review endpoints
+export const pendingAPI = {
+  list: (page?: number, type?: string, domain?: string) => {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (type) params.append('type', type);
+    if (domain) params.append('domain', domain);
+
+    return api.get<PaginatedResponse<PendingItem>>(`/pending?${params.toString()}`);
+  },
+
+  approve: (type: 'rule' | 'fact', id: number) =>
+    api.post(`/pending/${type}/${id}/approve`),
+
+  reject: (type: 'rule' | 'fact', id: number) =>
+    api.post(`/pending/${type}/${id}/reject`),
+
+  update: (type: 'rule' | 'fact', id: number, data: EditPayload) =>
+    api.put(`/pending/${type}/${id}`, data),
 };
 
 export default api;

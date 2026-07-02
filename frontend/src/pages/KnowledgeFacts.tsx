@@ -135,11 +135,18 @@ export const KnowledgeFacts: React.FC = () => {
             </a>
           </li>
           {user?.role === 'admin' && (
-            <li className="knowledge-facts-sidebar-item">
-              <a href="/upload" className={`knowledge-facts-sidebar-link ${isActive('/upload')}`}>
-                Upload
-              </a>
-            </li>
+            <>
+              <li className="knowledge-facts-sidebar-item">
+                <a href="/pending-review" className={`knowledge-facts-sidebar-link ${isActive('/pending-review')}`}>
+                  Pending Review
+                </a>
+              </li>
+              <li className="knowledge-facts-sidebar-item">
+                <a href="/upload" className={`knowledge-facts-sidebar-link ${isActive('/upload')}`}>
+                  Upload
+                </a>
+              </li>
+            </>
           )}
         </ul>
       </div>

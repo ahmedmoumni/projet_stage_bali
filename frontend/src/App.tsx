@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Upload } from './pages/Upload';
 import { KnowledgeRules } from './pages/KnowledgeRules';
 import { KnowledgeFacts } from './pages/KnowledgeFacts';
+import { PendingReview } from './pages/PendingReview';
 import './App.css';
 
 function App() {
@@ -45,6 +46,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <KnowledgeFacts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pending-review"
+            element={
+              <ProtectedRoute>
+                <PendingReview />
               </ProtectedRoute>
             }
           />

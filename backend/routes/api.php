@@ -23,6 +23,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/rules', [KnowledgeRuleController::class, 'index']);
     Route::get('/facts', [KnowledgeFactController::class, 'index']);
 
+    // Pending review routes (admin check in controller)
+    Route::get('/pending', [\App\Http\Controllers\PendingReviewController::class, 'index']);
+    Route::post('/pending/{type}/{id}/approve', [\App\Http\Controllers\PendingReviewController::class, 'approve']);
+    Route::post('/pending/{type}/{id}/reject', [\App\Http\Controllers\PendingReviewController::class, 'reject']);
+    Route::put('/pending/{type}/{id}', [\App\Http\Controllers\PendingReviewController::class, 'update']);
+
     // Document routes (admin only)
     Route::post('/documents/upload', [DocumentController::class, 'upload']);
     Route::get('/documents', [DocumentController::class, 'index']);

@@ -122,11 +122,18 @@ export const KnowledgeRules: React.FC = () => {
             </a>
           </li>
           {user?.role === 'admin' && (
-            <li className="knowledge-rules-sidebar-item">
-              <a href="/upload" className={`knowledge-rules-sidebar-link ${isActive('/upload')}`}>
-                Upload
-              </a>
-            </li>
+            <>
+              <li className="knowledge-rules-sidebar-item">
+                <a href="/pending-review" className={`knowledge-rules-sidebar-link ${isActive('/pending-review')}`}>
+                  Pending Review
+                </a>
+              </li>
+              <li className="knowledge-rules-sidebar-item">
+                <a href="/upload" className={`knowledge-rules-sidebar-link ${isActive('/upload')}`}>
+                  Upload
+                </a>
+              </li>
+            </>
           )}
         </ul>
       </div>
