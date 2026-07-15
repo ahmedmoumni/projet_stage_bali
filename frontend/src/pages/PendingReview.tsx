@@ -8,14 +8,6 @@ import { useAuth } from '../api/AuthContext';
 import type { PendingItem, EditPayload } from '../types/index';
 import './PendingReview.css';
 
-const DOMAIN_LABELS: Record<string, string> = {
-  social: 'Social',
-  economy: 'Economy',
-  infrastructure: 'Infrastructure',
-  health: 'Health',
-  culture_art: 'Culture & Art',
-};
-
 export const PendingReview: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();

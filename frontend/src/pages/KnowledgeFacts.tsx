@@ -280,7 +280,7 @@ export const KnowledgeFacts: React.FC = () => {
                         <span style={{color: '#9ca3af', fontStyle: 'italic'}}>{fact.relation}</span>
                       </td>
                       <td className="knowledge-facts-table-values">
-                        {formatValues(fact.values)}
+                        {formatValues(fact.fact_values)}
                       </td>
                       <td>
                         <DomainBadge domain={fact.domain} />
@@ -381,9 +381,9 @@ export const KnowledgeFacts: React.FC = () => {
             <div className="knowledge-facts-drawer-field">
               <div className="knowledge-facts-drawer-label">Values</div>
               <div className="knowledge-facts-drawer-value">
-                {selectedFact.values && selectedFact.values.length > 0 ? (
+                {selectedFact.fact_values && selectedFact.fact_values.length > 0 ? (
                   <div>
-                    {selectedFact.values.map((val, idx) => (
+                    {selectedFact.fact_values.map((val, idx) => (
                       <div key={idx} style={{marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid #e5e7eb'}}>
                         <div style={{fontSize: '0.85rem', fontWeight: '600', color: '#374151'}}>
                           {val.value_type === 'continuous' ? 'Continuous' : 'Categorical'}

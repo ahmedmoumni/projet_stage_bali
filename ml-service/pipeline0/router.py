@@ -246,18 +246,39 @@ def route_pdf(filename, file_content, log):
 def route_csv(filename, file_content, log):
     """Route CSV documents"""
     try:
-        text = extract_text_from_csv(file_content)
-        log.append(f"CSV file processed ({len(text)} chars)")
-        log.append("Structured data detected")
-        log.append(" Routed to Pipeline 2")
+        csv_buffer = io.BytesIO(file_content)
+        df = pd.read_csv(csv_buffer)
         
-        text_preview = text[:200] if text else ""
+        # Convert all values to strings
+        df = df.astype(str)
+        rows = df.to_dict('records')
+        headers = df.columns.tolist()
+        num_rows = len(rows)
+        num_cols = len(headers)
+        
+        # Identify semantic structure
+        # First column is always SUBJECT
+        subject_column = headers[0] if headers else None
+        relation_columns = headers[1:] if len(headers) > 1 else []
+        
+        log.append(f"✅ File received: {filename}")
+        log.append(f"✅ File type detected: CSV")
+        log.append(f"✅ {num_rows} rows detected, {num_cols} columns")
+        log.append(f"✅ Subject column: '{subject_column}'")
+        log.append(f"✅ Relation columns: {relation_columns}")
+        log.append("✅ Routed to Pipeline 2 direct")
         
         return {
             'file_type': 'csv',
             'routing': 'pipeline2_direct',
-            'pages': 1,
-            'text_preview': text_preview,
+            'pages': None,
+            'text': None,
+            'data': {
+                'headers': headers,
+                'rows': rows,
+                'subject_column': subject_column,
+                'relation_columns': relation_columns
+            },
             'log': log
         }
     except Exception as e:
@@ -266,7 +287,7 @@ def route_csv(filename, file_content, log):
             'file_type': 'csv',
             'routing': 'rejected',
             'pages': 0,
-            'text_preview': '',
+            'text': '',
             'reason': str(e),
             'log': log
         }
@@ -275,27 +296,48 @@ def route_csv(filename, file_content, log):
 def route_excel(filename, file_content, log):
     """Route Excel documents"""
     try:
-        text = extract_text_from_excel(file_content)
-        log.append(f" Excel file processed ({len(text)} chars)")
-        log.append("Structured data detected")
-        log.append(" Routed to Pipeline 2")
+        excel_buffer = io.BytesIO(file_content)
+        df = pd.read_excel(excel_buffer)
         
-        text_preview = text[:200] if text else ""
+        # Convert all values to strings
+        df = df.astype(str)
+        rows = df.to_dict('records')
+        headers = df.columns.tolist()
+        num_rows = len(rows)
+        num_cols = len(headers)
+        
+        # Identify semantic structure
+        # First column is always SUBJECT
+        subject_column = headers[0] if headers else None
+        relation_columns = headers[1:] if len(headers) > 1 else []
+        
+        log.append(f"✅ File received: {filename}")
+        log.append(f"✅ File type detected: Excel")
+        log.append(f"✅ {num_rows} rows detected, {num_cols} columns")
+        log.append(f"✅ Subject column: '{subject_column}'")
+        log.append(f"✅ Relation columns: {relation_columns}")
+        log.append("✅ Routed to Pipeline 2 direct")
         
         return {
             'file_type': 'excel',
             'routing': 'pipeline2_direct',
-            'pages': 1,
-            'text_preview': text_preview,
+            'pages': None,
+            'text': None,
+            'data': {
+                'headers': headers,
+                'rows': rows,
+                'subject_column': subject_column,
+                'relation_columns': relation_columns
+            },
             'log': log
         }
     except Exception as e:
-        log.append(f" Error processing Excel: {str(e)}")
+        log.append(f"❌ Error processing Excel: {str(e)}")
         return {
             'file_type': 'excel',
             'routing': 'rejected',
             'pages': 0,
-            'text_preview': '',
+            'text': '',
             'reason': str(e),
             'log': log
         }

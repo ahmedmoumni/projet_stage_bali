@@ -45,14 +45,41 @@ export type RoutingType = 'rejected' | 'pipeline1' | 'pipeline2_direct' | 'ocr_t
 export type Visibility = 'public' | 'private';
 
 export interface UploadResponse {
-  file_type: FileType;
-  routing: RoutingType;
-  pages: number;
-  text_preview: string;
-  log: string[];
+  file_type?: FileType;
+  routing?: RoutingType;
+  pages?: number;
+  text_preview?: string;
+  log?: string[];
   document_id?: number;
   visibility?: Visibility;
   reason?: string;
+  pipeline0_result?: {
+    file_type?: string;
+    routing?: string;
+    pages?: number;
+    text?: string;
+    data?: any[];
+    log?: string[];
+  };
+  pipeline1_result?: {
+    rules_extracted?: number;
+    facts_extracted?: number;
+    log?: string[];
+    [key: string]: any;
+  };
+  pipeline2_result?: {
+    classified?: number;
+    log?: string[];
+    [key: string]: any;
+  };
+  summary?: {
+    routing?: string;
+    file_type?: string;
+    pages?: number;
+    rules_extracted?: number;
+    facts_extracted?: number;
+  };
+  message?: string;
 }
 
 export interface DocumentLog {
@@ -111,6 +138,7 @@ export interface FactValue {
   value_continuous: number | null;
   value_categorical: string | null;
   unit: string | null;
+  column_name: string | null;
 }
 
 export interface KnowledgeFact {
@@ -125,7 +153,7 @@ export interface KnowledgeFact {
   extraction_method: ExtractionMethod;
   algorithm_used: string | null;
   created_at: string;
-  values: FactValue[];
+  fact_values: FactValue[];
 }
 
 // Pending Review Types

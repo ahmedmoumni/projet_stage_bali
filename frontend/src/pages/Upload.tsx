@@ -84,21 +84,6 @@ export const Upload: React.FC = () => {
     }
   };
 
-  const getAlertStyles = (routing: string) => {
-    switch (routing) {
-      case 'rejected':
-        return { bg: 'bg-red-100', border: 'border-red-300', text: 'text-red-800' };
-      case 'pipeline1':
-        return { bg: 'bg-green-100', border: 'border-green-300', text: 'text-green-800' };
-      case 'pipeline2_direct':
-        return { bg: 'bg-blue-100', border: 'border-blue-300', text: 'text-blue-800' };
-      case 'ocr_then_pipeline1':
-        return { bg: 'bg-orange-100', border: 'border-orange-300', text: 'text-orange-800' };
-      default:
-        return { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-800' };
-    }
-  };
-
   const getAlertMessage = (routing: string) => {
     switch (routing) {
       case 'rejected':
@@ -113,8 +98,6 @@ export const Upload: React.FC = () => {
         return 'Document traité';
     }
   };
-
-  const alertStyles = response ? getAlertStyles(response.routing) : null;
 
   const isActive = (path: string) => location.pathname === path ? 'active' : '';
 
@@ -260,9 +243,9 @@ export const Upload: React.FC = () => {
           <div className="upload-results">
             
             {/* Alert */}
-            {alertStyles && (
-              <div className={`upload-alert upload-alert-${response.routing}`}>
-                <p>{getAlertMessage(response.routing)}</p>
+            {response && (
+              <div className={`upload-alert upload-alert-${response.routing || response.pipeline0_result?.routing || 'unknown'}`}>
+                <p>{getAlertMessage(response.routing || response.pipeline0_result?.routing || 'unknown')}</p>
               </div>
             )}
 
@@ -272,11 +255,50 @@ export const Upload: React.FC = () => {
                 <h3>Processing Log</h3>
               </div>
               <div className="upload-log-content">
-                {response.log.map((logEntry, index) => (
-                  <div key={index} className="upload-log-entry">
-                    {logEntry}
+                {/* Pipeline 0 Log */}
+                {response.pipeline0_result?.log && response.pipeline0_result.log.length > 0 && (
+                  <>
+                    <div className="upload-log-section-title">Pipeline 0: Document Routing</div>
+                    {response.pipeline0_result.log.map((logEntry, index) => (
+                      <div key={`p0-${index}`} className="upload-log-entry">
+                        {logEntry}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Pipeline 1 Log */}
+                {response.pipeline1_result?.log && response.pipeline1_result.log.length > 0 && (
+                  <>
+                    <div className="upload-log-section-title">Pipeline 1: Knowledge Extraction</div>
+                    {response.pipeline1_result.log.map((logEntry, index) => (
+                      <div key={`p1-${index}`} className="upload-log-entry">
+                        {logEntry}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Pipeline 2 Log */}
+                {response.pipeline2_result?.log && response.pipeline2_result.log.length > 0 && (
+                  <>
+                    <div className="upload-log-section-title">Pipeline 2: Domain Classification</div>
+                    {response.pipeline2_result.log.map((logEntry, index) => (
+                      <div key={`p2-${index}`} className="upload-log-entry">
+                        {logEntry}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {/* Fallback if no logs */}
+                {(!response.pipeline0_result?.log || response.pipeline0_result.log.length === 0) &&
+                 (!response.pipeline1_result?.log || response.pipeline1_result.log.length === 0) &&
+                 (!response.pipeline2_result?.log || response.pipeline2_result.log.length === 0) && (
+                  <div className="upload-log-entry">
+                    Document processed successfully
                   </div>
-                ))}
+                )}
               </div>
             </div>
 
@@ -284,11 +306,19 @@ export const Upload: React.FC = () => {
             <div className="upload-details">
               <div className="upload-detail-item">
                 <p className="upload-detail-label">File Type</p>
-                <p className="upload-detail-value">{response.file_type.replace(/_/g, ' ').toUpperCase()}</p>
+                <p className="upload-detail-value">{(response.file_type || response.pipeline0_result?.file_type || response.summary?.file_type || 'unknown').replace(/_/g, ' ').toUpperCase()}</p>
               </div>
               <div className="upload-detail-item">
                 <p className="upload-detail-label">Pages</p>
-                <p className="upload-detail-value">{response.pages}</p>
+                <p className="upload-detail-value">{response.pages || response.pipeline0_result?.pages || response.summary?.pages || 0}</p>
+              </div>
+              <div className="upload-detail-item">
+                <p className="upload-detail-label">Rules Extracted</p>
+                <p className="upload-detail-value">{response.summary?.rules_extracted || 0}</p>
+              </div>
+              <div className="upload-detail-item">
+                <p className="upload-detail-label">Facts Extracted</p>
+                <p className="upload-detail-value">{response.summary?.facts_extracted || 0}</p>
               </div>
               {response.text_preview && (
                 <div className="upload-detail-item upload-detail-full">

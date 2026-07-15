@@ -222,13 +222,80 @@ class DomainClassifier:
             "evaluation_results": self.evaluation_results
         }
 
-    def predict(self, texts: List[str]) -> List[Dict]:
+    def _build_representative_text(self, item: Dict) -> Tuple[str, str]:
         """
-        Predict domain for given texts using selected algorithm
+        Build weighted text for TF-IDF and clean text for display.
+        
+        Weighted text (internal use for ML):
+        - For facts: relation × 3 + subject + values
+        - For rules: condition_subject × 2 + action_subject + source_text
+        
+        Clean text (for user display): without repetition
+        
         Args:
-            texts: List of text strings to classify
+            item: Dict containing the item data
         Returns:
-            List of dicts with text, predicted_domain, confidence, algorithm_used
+            Tuple of (weighted_text_for_tfidf, clean_text_for_display)
+        """
+        if item.get("type") == "rule":
+            # Rule: condition_subject repeated 2x + action_subject + source_text
+            condition_subject = item.get("condition_subject", "")
+            action_subject = item.get("action_subject", "")
+            source_text = item.get("source_text", "")
+            
+            # Weighted text (3x emphasis on condition)
+            weighted_parts = [
+                condition_subject, condition_subject,  # Repeat 2x for weight
+                action_subject,
+                source_text
+            ]
+            
+            # Clean text (no repetition)
+            clean_parts = [
+                condition_subject,
+                action_subject,
+                source_text
+            ]
+        else:
+            # Fact: relation repeated 3x + subject + values
+            relation = item.get("relation", "")
+            subject = item.get("subject", "")
+            values = item.get("values", "")
+            
+            # Weighted text (3x emphasis on relation)
+            weighted_parts = [
+                relation, relation, relation,  # Repeat 3x for weight
+                subject,
+                values
+            ]
+            
+            # Clean text (no repetition)
+            clean_parts = [
+                relation,
+                subject,
+                values
+            ]
+        
+        # Join and filter out empty strings
+        weighted_text = " ".join(str(part).strip() for part in weighted_parts if str(part).strip())
+        clean_text = " ".join(str(part).strip() for part in clean_parts if str(part).strip())
+        
+        return weighted_text, clean_text
+
+    def predict(self, items: List[Dict]) -> List[Dict]:
+        """
+        Predict domain for given items using dual-algorithm approach with confidence-based consultation.
+        
+        Algorithm selection:
+        - If primary algorithm confidence >= 0.80: validated (direct acceptance)
+        - If primary algorithm confidence < 0.80: consult secondary algorithm
+          - If both agree: validated if average confidence >= 0.70, else pending_review
+          - If they disagree: pending_review (admin must validate)
+        
+        Args:
+            items: List of dicts containing item data (fact or rule)
+        Returns:
+            List of dicts with predicted_domain, confidence, status, algorithm_used
         """
         if not self.vectorizer or not self.selected_algorithm:
             raise ValueError("Models not trained. Call train() first.")
@@ -238,35 +305,95 @@ class DomainClassifier:
         if self.selected_algorithm == "decision_tree" and not self.dt_model:
             raise ValueError("Decision Tree model not available")
 
-        # Vectorize texts
-        X = self.vectorizer.transform(texts)
+        # Build representative texts (weighted for TF-IDF, clean for display)
+        text_pairs = [self._build_representative_text(item) for item in items]
+        weighted_texts = [pair[0] for pair in text_pairs]
+        clean_texts = [pair[1] for pair in text_pairs]
+        
+        # Vectorize only weighted texts (internal use)
+        X = self.vectorizer.transform(weighted_texts)
 
-        # Get predictions
+        # Get predictions from primary algorithm
         if self.selected_algorithm == "naive_bayes":
-            predictions = self.nb_model.predict(X)
-            # Get confidence scores (max probability)
-            proba = self.nb_model.predict_proba(X)
-            confidences = np.max(proba, axis=1)
+            primary_predictions = self.nb_model.predict(X)
+            primary_proba = self.nb_model.predict_proba(X)
+            secondary_model = self.dt_model
+            secondary_name = "decision_tree"
         else:  # decision_tree
-            predictions = self.dt_model.predict(X)
-            proba = self.dt_model.predict_proba(X)
-            confidences = np.max(proba, axis=1)
+            primary_predictions = self.dt_model.predict(X)
+            primary_proba = self.dt_model.predict_proba(X)
+            secondary_model = self.nb_model
+            secondary_name = "naive_bayes"
 
-        # Format results
+        primary_confidences = np.max(primary_proba, axis=1)
+
+        # Format results with dual-algorithm logic
         results = []
-        for text, prediction, confidence in zip(texts, predictions, confidences):
-            results.append({
-                "text": text,
-                "predicted_domain": prediction,
-                "confidence": float(confidence),
-                "algorithm_used": self.selected_algorithm
-            })
+        for idx, (item, clean_text, primary_pred, primary_conf) in enumerate(
+            zip(items, clean_texts, primary_predictions, primary_confidences)
+        ):
+            primary_conf_float = float(primary_conf)
+            
+            # Decision: accept or consult secondary?
+            if primary_conf_float >= 0.80:
+                # High confidence: accept directly
+                result = {
+                    "text": clean_text,  # Return clean text (without repetition)
+                    "predicted_domain": primary_pred,
+                    "confidence": primary_conf_float,
+                    "status": "validated",
+                    "algorithm_used": self.selected_algorithm
+                }
+            else:
+                # Low confidence: consult secondary algorithm
+                secondary_pred = secondary_model.predict(X[idx:idx+1])[0]
+                secondary_proba = secondary_model.predict_proba(X[idx:idx+1])
+                secondary_conf_float = float(np.max(secondary_proba))
+                
+                if primary_pred == secondary_pred:
+                    # Both agree on domain
+                    avg_confidence = (primary_conf_float + secondary_conf_float) / 2
+                    status = "validated" if avg_confidence >= 0.70 else "pending_review"
+                    
+                    result = {
+                        "text": clean_text,  # Return clean text (without repetition)
+                        "predicted_domain": primary_pred,
+                        "confidence": avg_confidence,
+                        "status": status,
+                        "algorithm_used": self.selected_algorithm,
+                        "secondary_algorithm": secondary_name,
+                        "secondary_confidence": secondary_conf_float,
+                        "agreement": "both_algorithms"
+                    }
+                else:
+                    # Algorithms disagree
+                    result = {
+                        "text": clean_text,  # Return clean text (without repetition)
+                        "predicted_domain": primary_pred,
+                        "confidence": primary_conf_float,
+                        "status": "pending_review",
+                        "algorithm_used": self.selected_algorithm,
+                        "secondary_algorithm": secondary_name,
+                        "secondary_prediction": secondary_pred,
+                        "secondary_confidence": secondary_conf_float,
+                        "agreement": "disagreement",
+                        "note": "Admin must manually validate - algorithms disagree"
+                    }
+            
+            results.append(result)
 
         return results
 
-    def predict_single(self, text: str) -> Dict:
-        """Predict domain for single text"""
-        results = self.predict([text])
+    def predict_single(self, item: Dict) -> Dict:
+        """
+        Predict domain for single item (fact or rule)
+        
+        Args:
+            item: Dict containing item data
+        Returns:
+            Dict with predicted_domain, confidence, status, algorithm_used
+        """
+        results = self.predict([item])
         return results[0] if results else None
 
     def get_domains(self) -> List[str]:

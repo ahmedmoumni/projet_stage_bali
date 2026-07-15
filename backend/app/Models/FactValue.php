@@ -18,6 +18,7 @@ class FactValue extends Model
         'value_continuous',
         'value_categorical',
         'unit',
+        'column_name',
     ];
 
     protected $casts = [

@@ -57,8 +57,11 @@ def document_router():
     Receives a file (PDF, CSV, or Excel) and routes it to appropriate pipelines.
     """
     try:
+        print("📥 [Pipeline0] Request received")
+        
         # Check if file is in request
         if 'file' not in request.files:
+            print("❌ [Pipeline0] No file in request.files")
             return {
                 'file_type': 'unknown',
                 'routing': 'rejected',
@@ -69,6 +72,7 @@ def document_router():
             }, 400
         
         file = request.files['file']
+        print(f"✅ [Pipeline0] File received: {file.filename}")
         
         if file.filename == '':
             return {
@@ -82,6 +86,7 @@ def document_router():
         
         # Get file content
         file_content = file.read()
+        print(f"✅ [Pipeline0] File size: {len(file_content)} bytes")
         
         # Determine file type from extension
         filename = file.filename.lower()
@@ -92,6 +97,7 @@ def document_router():
         elif filename.endswith(('.xlsx', '.xls')):
             file_type = 'excel'
         else:
+            print(f"❌ [Pipeline0] Unsupported file type: {filename}")
             return {
                 'file_type': 'unknown',
                 'routing': 'rejected',
@@ -101,11 +107,26 @@ def document_router():
                 'log': [f'❌ Unsupported file type: {filename}']
             }, 400
         
+        print(f"✅ [Pipeline0] File type detected: {file_type}")
+        
         # Route the document
+        print(f"🔄 [Pipeline0] Calling route_document()")
         result = route_document(file.filename, file_content, file_type)
+        
+        data = result.get('data', {})
+        if isinstance(data, dict):
+            rows_count = len(data.get('rows', []))
+            headers = data.get('headers', [])
+            print(f"✅ [Pipeline0] Result: routing={result.get('routing')}, file_type={result.get('file_type')}, rows={rows_count}, headers={len(headers)}")
+        else:
+            print(f"✅ [Pipeline0] Result: routing={result.get('routing')}, file_type={result.get('file_type')}")
+        
         return result, 200
     
     except Exception as e:
+        print(f"❌ [Pipeline0] Exception: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {
             'file_type': 'unknown',
             'routing': 'rejected',
@@ -175,19 +196,164 @@ def train_classifiers():
 @app.route('/pipeline2/classify', methods=['POST'])
 def classify_items():
     """
-    Pipeline 2: Classify Unclassified Items
+    Pipeline 2: Classify Items
     POST /pipeline2/classify
     
-    Classifies all unclassified knowledge items from database and updates them.
+    Three modes:
+    1. New structure (from P0): {'data': {'headers': [...], 'rows': [...]}, 'source': '...'}
+    2. Legacy items list: {'items': [texts], 'source': '...'}
+    3. Database: no data
     """
     try:
+        from pipeline2.classifier import classifier
+        
+        data = request.get_json() or {}
+        source = data.get('source', 'database')
+        
+        # MODE 1: New structure (Pipeline 0 direct → Pipeline 2)
+        if 'data' in data and isinstance(data['data'], dict):
+            structured_data = data['data']
+            headers = structured_data.get('headers', [])
+            rows = structured_data.get('rows', [])
+            subject_column = structured_data.get('subject_column')
+            relation_columns = structured_data.get('relation_columns', [])
+            
+            if not headers or not rows:
+                return {
+                    'status': 'error',
+                    'message': 'Data structure invalid: missing headers or rows',
+                    'classified': 0,
+                    'predictions': []
+                }, 400
+            
+            predictions = []
+            domain_dist = {}
+            
+            # If subject_column not provided, use first column
+            if not subject_column:
+                subject_column = headers[0]
+            if not relation_columns:
+                relation_columns = headers[1:]
+            
+            for row in rows:
+                # Get subject from first column
+                subject = str(row.get(subject_column, 'unknown'))
+                
+                # Create ONE FACT per relation column
+                # Each relation becomes a separate fact
+                for relation_col in relation_columns:
+                    relation_value = str(row.get(relation_col, ''))
+                    
+                    # Create fact item for classification (dual-algorithm logic)
+                    fact_item = {
+                        'type': 'fact',
+                        'subject': subject,
+                        'relation': f'has_{relation_col.lower()}',  # e.g., 'has_population'
+                        'values': relation_value
+                    }
+                    
+                    # Classify using dual-algorithm approach with confidence consultation
+                    try:
+                        predictions_result = classifier.predict([fact_item])
+                        if predictions_result and len(predictions_result) > 0:
+                            pred = predictions_result[0]
+                            domain = pred.get('predicted_domain', 'unknown')
+                            confidence = pred.get('confidence', 0)
+                            status = pred.get('status', 'pending_review')
+                            algorithm_used = pred.get('algorithm_used', 'unknown')
+                            tfidf_text = pred.get('text', '')
+                        else:
+                            domain = 'unknown'
+                            confidence = 0
+                            status = 'pending_review'
+                            algorithm_used = 'unknown'
+                            tfidf_text = ''
+                    except Exception as e:
+                        print(f"❌ Classification error: {str(e)}")
+                        domain = 'unknown'
+                        confidence = 0
+                        status = 'pending_review'
+                        algorithm_used = 'unknown'
+                        tfidf_text = ''
+                    
+                    # Create fact for this relation
+                    pred_obj = {
+                        'subject': subject,
+                        'relation': f'has_{relation_col.lower()}',  # e.g., 'has_population'
+                        'relation_column': relation_col,
+                        'relation_value': relation_value,
+                        'text': tfidf_text,
+                        'domain': domain,
+                        'confidence': float(confidence),
+                        'status': status,
+                        'algorithm_used': algorithm_used,
+                        'row_data': {relation_col: relation_value},  # Single value
+                        'headers': [relation_col]
+                    }
+                    
+                    predictions.append(pred_obj)
+                    domain_dist[domain] = domain_dist.get(domain, 0) + 1
+            
+            return {
+                'status': 'success',
+                'source': source,
+                'classified': len(predictions),
+                'domain_distribution': domain_dist,
+                'predictions': predictions
+            }, 200
+        
+        # MODE 2: Legacy items list
+        items = data.get('items')
+        if items and isinstance(items, list) and len(items) > 0:
+            classified_items = []
+            domain_dist = {}
+            
+            for item_text in items:
+                text = str(item_text) if item_text else ""
+                
+                if text.strip():
+                    try:
+                        prediction = classifier.predict([text])
+                        if prediction and len(prediction) > 0:
+                            domain = prediction[0].get('predicted_domain', 'unknown')
+                            confidence = prediction[0].get('confidence', 0)
+                        else:
+                            domain = 'unknown'
+                            confidence = 0
+                    except Exception as classify_error:
+                        domain = 'unknown'
+                        confidence = 0
+                else:
+                    domain = 'unknown'
+                    confidence = 0
+                
+                classified_items.append({
+                    'text': text,
+                    'domain': domain,
+                    'confidence': float(confidence)
+                })
+                
+                domain_dist[domain] = domain_dist.get(domain, 0) + 1
+            
+            return {
+                'status': 'success',
+                'source': source,
+                'classified': len(classified_items),
+                'domain_distribution': domain_dist,
+                'predictions': classified_items
+            }, 200
+        
+        # MODE 3: Classify all unclassified from database
         result = classify_and_update()
         return result, 200
+    
     except Exception as e:
+        import traceback
         return {
             'status': 'error',
             'message': str(e),
-            'classified': 0
+            'classified': 0,
+            'error_trace': traceback.format_exc()
         }, 500
 
 
@@ -312,5 +478,179 @@ def domain_classification():
     return {'message': 'Domain classification not implemented yet'}, 501
 
 
+@app.route('/orchestrate', methods=['POST'])
+def orchestrate():
+    """
+    Complete Pipeline Orchestration
+    POST /orchestrate
+    
+    Receives a file and executes the complete pipeline:
+    1. Pipeline 0: Routes document (text extraction + routing decision)
+    2. Based on routing:
+       - rejected: Stop, return document_log
+       - pipeline1/ocr_then_pipeline1: Run Pipeline 1 → Pipeline 2
+       - pipeline2_direct: Run Pipeline 2 directly with CSV/Excel data
+    
+    Returns combined results from all executed pipelines.
+    """
+    try:
+        if 'file' not in request.files:
+            return {
+                'status': 'error',
+                'message': 'No file provided',
+                'orchestration_log': ['❌ No file provided']
+            }, 400
+        
+        file = request.files['file']
+        visibility = request.form.get('visibility', 'private')
+        
+        if file.filename == '':
+            return {
+                'status': 'error',
+                'message': 'No file selected',
+                'orchestration_log': ['❌ No file selected']
+            }, 400
+        
+        orchestration_log = []
+        combined_result = {
+            'status': 'success',
+            'visibility': visibility,
+            'orchestration_log': orchestration_log,
+            'pipeline0_result': None,
+            'pipeline1_result': None,
+            'pipeline2_result': None,
+            'summary': {
+                'routing': 'unknown',
+                'file_type': 'unknown',
+                'pages': 0,
+                'rules_extracted': 0,
+                'facts_extracted': 0,
+                'domain_distribution': {}
+            }
+        }
+        
+        # STEP 1: Run Pipeline 0 - Document Router
+        orchestration_log.append(f"📄 Processing file: {file.filename}")
+        file_content = file.read()
+        filename = file.filename.lower()
+        
+        if filename.endswith('.pdf'):
+            file_type = 'pdf'
+        elif filename.endswith('.csv'):
+            file_type = 'csv'
+        elif filename.endswith(('.xlsx', '.xls')):
+            file_type = 'excel'
+        else:
+            orchestration_log.append("❌ Unsupported file type")
+            combined_result['status'] = 'error'
+            return combined_result, 400
+        
+        orchestration_log.append(f"🔍 Running Pipeline 0 - Document Router")
+        pipeline0_result = route_document(file.filename, file_content, file_type)
+        combined_result['pipeline0_result'] = pipeline0_result
+        
+        routing = pipeline0_result.get('routing', 'rejected')
+        file_type_detected = pipeline0_result.get('file_type', 'unknown')
+        pages = pipeline0_result.get('pages', 0)
+        
+        combined_result['summary']['routing'] = routing
+        combined_result['summary']['file_type'] = file_type_detected
+        combined_result['summary']['pages'] = pages
+        
+        orchestration_log.append(f"✅ Pipeline 0: routing={routing}, file_type={file_type_detected}")
+        
+        # STEP 2: Route to appropriate pipeline(s)
+        if routing == 'rejected':
+            orchestration_log.append("🛑 Document rejected - stopping orchestration")
+            combined_result['summary']['rules_extracted'] = 0
+            combined_result['summary']['facts_extracted'] = 0
+        
+        elif routing in ['pipeline1', 'ocr_then_pipeline1']:
+            # Run Pipeline 1 - Extract rules and facts from text
+            text = pipeline0_result.get('text', '')
+            orchestration_log.append(f"🔄 Running Pipeline 1 - Knowledge Extraction")
+            
+            pipeline1_result = extract_pipeline1(text)
+            combined_result['pipeline1_result'] = pipeline1_result
+            
+            rules_extracted = pipeline1_result.get('rules_extracted', 0)
+            facts_extracted = pipeline1_result.get('facts_extracted', 0)
+            combined_result['summary']['rules_extracted'] = rules_extracted
+            combined_result['summary']['facts_extracted'] = facts_extracted
+            
+            orchestration_log.append(f"✅ Pipeline 1: {rules_extracted} rules, {facts_extracted} facts extracted")
+            
+            # Auto-run Pipeline 2 - Classify extracted items
+            if rules_extracted > 0 or facts_extracted > 0:
+                orchestration_log.append(f"🔄 Running Pipeline 2 - Domain Classification (auto-triggered)")
+                pipeline2_result = classify_and_update()
+                combined_result['pipeline2_result'] = pipeline2_result
+                
+                rules_classified = pipeline2_result.get('rules_classified', 0)
+                facts_classified = pipeline2_result.get('facts_classified', 0)
+                orchestration_log.append(f"✅ Pipeline 2: {rules_classified} rules, {facts_classified} facts classified")
+                combined_result['summary']['domain_distribution'] = pipeline2_result.get('domain_distribution', {})
+        
+        elif routing == 'pipeline2_direct':
+            # Structured data (CSV/Excel) - classify directly with Pipeline 2
+            orchestration_log.append(f"🔄 Running Pipeline 2 - Direct Classification (CSV/Excel)")
+            
+            try:
+                data = pipeline0_result.get('data', [])
+                
+                if not data or len(data) == 0:
+                    orchestration_log.append("❌ No structured data extracted by Pipeline 0")
+                    combined_result['status'] = 'partial_error'
+                else:
+                    # Data is already formatted as array of objects/rows from Pipeline 0
+                    # Convert to texts for classification
+                    texts = []
+                    for row in data:
+                        if isinstance(row, dict):
+                            # Join all values into a text
+                            row_text = ' '.join(str(v) for v in row.values() if v)
+                        else:
+                            row_text = str(row)
+                        texts.append(row_text)
+                    
+                    # Classify each row
+                    predictions = classify_pipeline2(texts)
+                    combined_result['pipeline2_result'] = {
+                        'status': 'success',
+                        'source': 'pipeline0_direct',
+                        'total_items': len(predictions),
+                        'classified': len(predictions),
+                        'predictions': predictions
+                    }
+                    
+                    combined_result['summary']['facts_extracted'] = len(predictions)
+                    combined_result['summary']['rules_extracted'] = 0
+                    
+                    # Count domain distribution
+                    domain_dist = {}
+                    for pred in predictions:
+                        domain = pred.get('domain', 'unknown')
+                        domain_dist[domain] = domain_dist.get(domain, 0) + 1
+                    combined_result['summary']['domain_distribution'] = domain_dist
+                    
+                    orchestration_log.append(f"✅ Pipeline 2: {len(predictions)} items classified")
+                    orchestration_log.append(f"   Domain distribution: {domain_dist}")
+            
+            except Exception as p2_error:
+                orchestration_log.append(f"❌ Pipeline 2 error: {str(p2_error)}")
+                combined_result['status'] = 'partial_error'
+        
+        orchestration_log.append("✅ Orchestration complete")
+        return combined_result, 200
+    
+    except Exception as e:
+        import traceback
+        return {
+            'status': 'error',
+            'message': str(e),
+            'orchestration_log': [f'❌ Server error: {str(e)}', traceback.format_exc()]
+        }, 500
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5000, host='0.0.0.0')
+    app.run(debug=False, port=5000, host='0.0.0.0')
