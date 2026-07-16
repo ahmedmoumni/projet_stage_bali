@@ -17,16 +17,21 @@ class DomainStorage:
 
     def get_unclassified_rules(self) -> List[Dict]:
         """
-        Fetch all knowledge_rules where domain IS NULL
-        Returns list of dicts with id, source_text for classification
+        Fetch all knowledge_rules where domain IS NULL with condition and action subjects
+        Returns list of dicts with id, source_text, condition_subject, action_subject for classification
         """
         try:
             query = text("""
                 SELECT 
-                    id,
-                    source_text
-                FROM knowledge_rules
-                WHERE domain IS NULL
+                    kr.id,
+                    kr.source_text,
+                    GROUP_CONCAT(DISTINCT rcf.subject ORDER BY rcf.id SEPARATOR ', ') as condition_subjects,
+                    GROUP_CONCAT(DISTINCT raf.subject ORDER BY raf.id SEPARATOR ', ') as action_subjects
+                FROM knowledge_rules kr
+                LEFT JOIN rule_condition_facts rcf ON kr.id = rcf.rule_id
+                LEFT JOIN rule_action_facts raf ON kr.id = raf.rule_id
+                WHERE kr.domain = '' OR kr.domain IS NULL
+                GROUP BY kr.id
                 LIMIT 100
             """)
             
@@ -34,11 +39,15 @@ class DomainStorage:
             
             items = []
             for row in results:
+                condition_subject = row[2] or ""
+                action_subject = row[3] or ""
                 items.append({
                     "id": row[0],
                     "type": "rule",
                     "text": row[1],
-                    "source_text": row[1]
+                    "source_text": row[1],
+                    "condition_subject": condition_subject,
+                    "action_subject": action_subject
                 })
             
             return items
@@ -48,16 +57,24 @@ class DomainStorage:
 
     def get_unclassified_facts(self) -> List[Dict]:
         """
-        Fetch all knowledge_facts where domain IS NULL
-        Returns list of dicts with id, source_text for classification
+        Fetch all knowledge_facts where domain is empty (unclassified)
+        Returns list of dicts with id, source_text, subject, relation, values for classification
         """
         try:
             query = text("""
                 SELECT 
-                    id,
-                    source_text
-                FROM knowledge_facts
-                WHERE domain IS NULL
+                    kf.id,
+                    kf.source_text,
+                    kf.subject,
+                    kf.relation,
+                    GROUP_CONCAT(
+                        COALESCE(fv.value_categorical, CAST(fv.value_continuous AS CHAR))
+                        SEPARATOR ', '
+                    ) as fact_values
+                FROM knowledge_facts kf
+                LEFT JOIN fact_values fv ON fv.parent_type = 'knowledge_fact' AND kf.id = fv.parent_id
+                WHERE kf.domain = '' OR kf.domain IS NULL
+                GROUP BY kf.id
                 LIMIT 100
             """)
             
@@ -65,16 +82,20 @@ class DomainStorage:
             
             items = []
             for row in results:
+                values = row[4] or ""
                 items.append({
                     "id": row[0],
                     "type": "fact",
                     "text": row[1],
-                    "source_text": row[1]
+                    "source_text": row[1],
+                    "subject": row[2],
+                    "relation": row[3],
+                    "values": values
                 })
             
             return items
         except Exception as e:
-            print(f" Error fetching unclassified facts: {str(e)}")
+            print(f"❌ Error fetching unclassified facts: {str(e)}")
             return []
 
     def get_all_unclassified(self) -> List[Dict]:
@@ -181,16 +202,16 @@ class DomainStorage:
                 SELECT 
                     'rules' as type,
                     COUNT(*) as total,
-                    SUM(CASE WHEN domain IS NOT NULL THEN 1 ELSE 0 END) as classified,
-                    SUM(CASE WHEN domain IS NULL THEN 1 ELSE 0 END) as unclassified,
+                    SUM(CASE WHEN domain != '' AND domain IS NOT NULL THEN 1 ELSE 0 END) as classified,
+                    SUM(CASE WHEN domain = '' OR domain IS NULL THEN 1 ELSE 0 END) as unclassified,
                     COUNT(DISTINCT domain) as unique_domains
                 FROM knowledge_rules
                 UNION ALL
                 SELECT 
                     'facts' as type,
                     COUNT(*) as total,
-                    SUM(CASE WHEN domain IS NOT NULL THEN 1 ELSE 0 END) as classified,
-                    SUM(CASE WHEN domain IS NULL THEN 1 ELSE 0 END) as unclassified,
+                    SUM(CASE WHEN domain != '' AND domain IS NOT NULL THEN 1 ELSE 0 END) as classified,
+                    SUM(CASE WHEN domain = '' OR domain IS NULL THEN 1 ELSE 0 END) as unclassified,
                     COUNT(DISTINCT domain) as unique_domains
                 FROM knowledge_facts
             """)

@@ -24,36 +24,45 @@ def classify_and_update():
         return {
             "status": "success",
             "message": "No unclassified items found",
-            "classified": 0
+            "rules_classified": 0,
+            "facts_classified": 0,
+            "domain_distribution": {}
         }
     
-    # Extract texts for classification
-    texts = [item["text"] for item in unclassified]
-    
-    # Classify
-    predictions = classifier.predict(texts)
+    # Classify items (pass full item dicts with all required fields)
+    predictions = classifier.predict(unclassified)
     
     # Merge with item metadata
     classifications = []
+    domain_distribution = {}
     for item, prediction in zip(unclassified, predictions):
+        domain = prediction.get("predicted_domain", "unknown")
         classification = {
             "id": item["id"],
             "type": item["type"],
-            "predicted_domain": prediction["predicted_domain"],
-            "algorithm_used": prediction["algorithm_used"],
-            "confidence": prediction["confidence"]
+            "predicted_domain": domain,
+            "algorithm_used": prediction.get("algorithm_used", "unknown"),
+            "confidence": prediction.get("confidence", 0)
         }
         classifications.append(classification)
+        
+        # Count domain distribution
+        domain_distribution[domain] = domain_distribution.get(domain, 0) + 1
     
     # Update database
     update_results = storage.batch_update_domains(classifications)
     
+    # Separate counts by type
+    rules_classified = update_results.get("updated_rules", 0)
+    facts_classified = update_results.get("updated_facts", 0)
+    
     return {
         "status": "success",
-        "message": f"Classification complete. Updated {update_results['updated_rules'] + update_results['updated_facts']} items",
-        "updated_rules": update_results["updated_rules"],
-        "updated_facts": update_results["updated_facts"],
-        "failed": update_results["failed"],
+        "message": f"Classification complete. Updated {rules_classified + facts_classified} items",
+        "rules_classified": rules_classified,
+        "facts_classified": facts_classified,
+        "domain_distribution": domain_distribution,
+        "failed": update_results.get("failed", 0),
         "classifications": classifications[:10]  # Return first 10 for preview
     }
 

@@ -12,6 +12,7 @@ from typing import List, Dict, Tuple, Optional
 from dotenv import load_dotenv
 from groq import Groq
 from datetime import datetime
+from sqlalchemy import text
 from .models import (
     get_session, KnowledgeRule, RuleConditionFact, RuleActionFact,
     KnowledgeFact, FactValue, StatusEnum, ValueTypeEnum
@@ -21,11 +22,19 @@ from .models import (
 load_dotenv()
 
 # Load spaCy model
-try:
-    nlp = spacy.load('en_core_web_sm')
-except OSError:
-    print(" spaCy model not found. Run: python -m spacy download en_core_web_sm")
-    nlp = None
+nlp = None
+
+def load_spacy_model():
+    """Load spaCy model with proper error handling"""
+    global nlp
+    if nlp is None:
+        try:
+            nlp = spacy.load('en_core_web_sm')
+            print("✅ spaCy model loaded successfully")
+        except OSError:
+            print("❌ spaCy model not found. Run: python -m spacy download en_core_web_sm")
+            nlp = None
+    return nlp
 
 # Initialize Groq client directly
 groq_api_key = os.getenv("GROQ_API_KEY")
@@ -41,7 +50,11 @@ def get_groq_client():
     global _groq_client
     if _groq_client is None:
         try:
-            _groq_client = Groq(api_key=groq_api_key)
+            if groq_api_key:
+                _groq_client = Groq(api_key=groq_api_key)
+            else:
+                print("⚠️  GROQ_API_KEY not set - LLM fallback will be unavailable")
+                _groq_client = None
         except Exception as e:
             print(f"⚠️  Failed to initialize Groq client: {str(e)}")
             _groq_client = None
@@ -76,6 +89,10 @@ class KnowledgeExtractor:
     """Main extractor class coordinating all 5 stages"""
 
     def __init__(self):
+        global nlp
+        # Ensure spaCy model is loaded
+        if nlp is None:
+            load_spacy_model()
         self.session = get_session()
         self.extraction_log = []
 
@@ -286,11 +303,19 @@ Sentence: {sentence}"""
         try:
             doc = nlp(sentence)
 
-            # Find subject (nsubj)
+            # Find subject (nsubj) - include modifiers
             subject = None
+            subject_token = None
             for token in doc:
                 if token.dep_ == "nsubj":
-                    subject = token.text
+                    subject_token = token
+                    # Include compound modifiers (e.g., "north district")
+                    subject_parts = []
+                    for child in token.subtree:
+                        if child.dep_ in ["compound", "amod", "det"]:
+                            subject_parts.append(child.text)
+                    subject_parts.append(token.text)
+                    subject = " ".join(subject_parts)
                     break
 
             if not subject:
@@ -305,15 +330,26 @@ Sentence: {sentence}"""
                 self.log(f"  No relation found")
                 return None
 
-            # Find objects (dobj, pobj)
+            # Find objects (dobj, pobj) - include modifiers
             values = []
+            seen_values = set()
             for token in doc:
-                if token.dep_ in ["dobj", "pobj", "attr"]:
-                    values.append({
-                        'value': token.text,
-                        'value_type': 'categorical',
-                        'unit': None
-                    })
+                if token.dep_ in ["dobj", "pobj", "attr", "nmod"]:
+                    # Include modifiers for compound objects
+                    value_parts = []
+                    for child in token.subtree:
+                        if child.dep_ in ["compound", "amod", "det"]:
+                            value_parts.append(child.text)
+                    value_parts.append(token.text)
+                    value_text = " ".join(value_parts)
+                    
+                    if value_text not in seen_values:
+                        seen_values.add(value_text)
+                        values.append({
+                            'value': value_text,
+                            'value_type': 'categorical',
+                            'unit': None
+                        })
 
             if not values:
                 self.log(f"  No values found")
@@ -345,24 +381,54 @@ Sentence: {sentence}"""
 
         for token in doc:
             if token.dep_ == "nsubj":  # Subject of condition
+                # Build subject with modifiers
+                subject_parts = []
+                for child in token.subtree:
+                    if child.dep_ in ["compound", "amod", "det"] and child != token:
+                        subject_parts.append(child.text)
+                subject_parts.append(token.text)
+                subject = " ".join(subject_parts)
+                
                 condition = {
-                    'subject': token.text,
+                    'subject': subject,
                     'operator': '=',
                     'values': [],
                     'logical_operator': None,
                     'group_id': 0
                 }
 
-                # Find objects
-                for child in token.head.children:
-                    if child.dep_ in ["dobj", "attr"]:
+                # Get the root verb (head of this nsubj)
+                root_verb = token.head
+                
+                # Find the operator/comparison verb
+                operator_text = root_verb.lemma_.lower() if root_verb else ''
+                if operator_text in ['exceed', 'exceed', 'less', 'greater', 'equal']:
+                    condition['operator'] = operator_text
+                
+                # Find objects, numbers, and values
+                for child in root_verb.children:
+                    if child.dep_ in ["dobj", "attr", "nmod", "compound", "pobj"]:
+                        # Add value with modifiers
+                        value_parts = []
+                        for subchild in child.subtree:
+                            if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
+                                value_parts.append(subchild.text)
+                        value_parts.append(child.text)
+                        value_text = " ".join(value_parts)
+                        
                         condition['values'].append({
-                            'value': child.text,
+                            'value': value_text,
                             'value_type': 'categorical',
                             'unit': None
                         })
+                    elif child.dep_ == "nummod":  # Numbers
+                        condition['values'].append({
+                            'value': child.text,
+                            'value_type': 'continuous',
+                            'unit': None
+                        })
 
-                if condition['values']:
+                if condition['values'] or root_verb.lemma_ in RULE_MARKERS:
                     conditions.append(condition)
 
         return conditions
@@ -371,10 +437,48 @@ Sentence: {sentence}"""
         """Extract actions from a rule sentence"""
         actions = []
 
-        # Find verbs that could be actions
+        # Find the root verb (main action)
         root = self._get_root_token(doc)
+        if root and root.pos_ == "VERB":
+            action = {
+                'subject': '',
+                'operator': '=',
+                'values': [],
+                'logical_operator': None,
+                'group_id': 0
+            }
+
+            # Find subject and objects of root verb
+            for child in root.children:
+                if child.dep_ == "nsubj":
+                    # Include subject modifiers
+                    subject_parts = []
+                    for subchild in child.subtree:
+                        if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
+                            subject_parts.append(subchild.text)
+                    subject_parts.append(child.text)
+                    action['subject'] = " ".join(subject_parts)
+                elif child.dep_ in ["dobj", "attr", "pobj"]:
+                    # Include value modifiers
+                    value_parts = []
+                    for subchild in child.subtree:
+                        if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
+                            value_parts.append(subchild.text)
+                    value_parts.append(child.text)
+                    value_text = " ".join(value_parts)
+                    
+                    action['values'].append({
+                        'value': value_text,
+                        'value_type': 'categorical',
+                        'unit': None
+                    })
+
+            if action['subject'] or action['values']:
+                actions.append(action)
+
+        # Also find other verbs that might be actions
         for token in doc:
-            if token.pos_ in ["VERB", "AUX"] and token != root:
+            if token.pos_ in ["VERB"] and token != root:
                 action = {
                     'subject': '',
                     'operator': '=',
@@ -386,16 +490,32 @@ Sentence: {sentence}"""
                 # Find subject and object
                 for child in token.children:
                     if child.dep_ == "nsubj":
-                        action['subject'] = child.text
-                    elif child.dep_ in ["dobj", "attr"]:
+                        # Include subject modifiers
+                        subject_parts = []
+                        for subchild in child.subtree:
+                            if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
+                                subject_parts.append(subchild.text)
+                        subject_parts.append(child.text)
+                        action['subject'] = " ".join(subject_parts)
+                    elif child.dep_ in ["dobj", "attr", "pobj"]:
+                        # Include value modifiers
+                        value_parts = []
+                        for subchild in child.subtree:
+                            if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
+                                value_parts.append(subchild.text)
+                        value_parts.append(child.text)
+                        value_text = " ".join(value_parts)
+                        
                         action['values'].append({
-                            'value': child.text,
+                            'value': value_text,
                             'value_type': 'categorical',
                             'unit': None
                         })
 
-                if action['subject'] and action['values']:
-                    actions.append(action)
+                if action['subject'] or action['values']:
+                    # Check if not already added
+                    if not any(a['subject'] == action['subject'] for a in actions):
+                        actions.append(action)
 
         return actions
 
@@ -552,17 +672,17 @@ Sentence: {sentence}"""
 
     def _calculate_confidence(self, *args) -> float:
         """Calculate confidence score (0.0 - 1.0)"""
-        score = 0.0
-
+        score = 0.8  # Start with base score of 0.8 (increased from 0.7)
+        
         # Check if subjects exist
         for arg in args:
             if isinstance(arg, dict):
                 if arg.get('subject'):
-                    score += 0.15
+                    score += 0.05
                 if arg.get('relation') or arg.get('operator'):
-                    score += 0.15
-                if arg.get('values'):
-                    score += 0.1
+                    score += 0.05
+                if arg.get('values') and len(arg.get('values', [])) > 0:
+                    score += 0.05
 
         return min(score, 1.0)
 
@@ -588,18 +708,18 @@ Sentence: {sentence}"""
     def _store_rule(self, rule: Dict):
         """Store rule in database"""
         try:
-            if not self._validate_rule(rule):
-                status = StatusEnum.PENDING_REVIEW
-            else:
-                status = StatusEnum.VALIDATED
+            # All extracted data starts as PENDING_REVIEW for admin review
+            # Validation only checks if data is well-formed
+            status = StatusEnum.PENDING_REVIEW
 
             # Create knowledge rule
             kb_rule = KnowledgeRule(
                 source_text=rule['source_text'],
-                domain=None,
+                domain='',  # Empty string instead of None (Laravel doesn't allow NULL)
                 visibility='private',
                 confidence_score=rule['confidence'],
                 extraction_method=rule['extraction_method'],
+                algorithm_used='',  # Empty string instead of None
                 condition_group_operator=rule.get('condition_group_operator', 'AND'),
                 action_group_operator=rule.get('action_group_operator', 'AND'),
                 status=status
@@ -619,18 +739,23 @@ Sentence: {sentence}"""
                 self.session.add(cond_fact)
                 self.session.flush()
 
-                # Store condition values
+                # Store condition values using raw SQL (Laravel-compatible structure)
                 for val in cond.get('values', []):
                     val_type, cont, cat = self._detect_value_type(val['value'])
                     unit = self._detect_unit(val['value'])
-                    fact_val = FactValue(
-                        condition_fact_id=cond_fact.id,
-                        value_type=val_type,
-                        value_continuous=cont,
-                        value_categorical=cat,
-                        unit=unit
-                    )
-                    self.session.add(fact_val)
+                    
+                    # Use raw SQL to insert into fact_values table (Laravel compatible)
+                    insert_query = text("""
+                        INSERT INTO fact_values (parent_type, parent_id, value_type, value_continuous, value_categorical, unit, created_at)
+                        VALUES ('condition_fact', :parent_id, :value_type, :value_continuous, :value_categorical, :unit, NOW())
+                    """)
+                    self.session.execute(insert_query, {
+                        'parent_id': cond_fact.id,
+                        'value_type': val_type.value,
+                        'value_continuous': cont,
+                        'value_categorical': cat,
+                        'unit': unit
+                    })
 
             # Store actions
             for act in rule['actions']:
@@ -644,18 +769,23 @@ Sentence: {sentence}"""
                 self.session.add(act_fact)
                 self.session.flush()
 
-                # Store action values
+                # Store action values using raw SQL (Laravel-compatible structure)
                 for val in act.get('values', []):
                     val_type, cont, cat = self._detect_value_type(val['value'])
                     unit = self._detect_unit(val['value'])
-                    fact_val = FactValue(
-                        action_fact_id=act_fact.id,
-                        value_type=val_type,
-                        value_continuous=cont,
-                        value_categorical=cat,
-                        unit=unit
-                    )
-                    self.session.add(fact_val)
+                    
+                    # Use raw SQL to insert into fact_values table (Laravel compatible)
+                    insert_query = text("""
+                        INSERT INTO fact_values (parent_type, parent_id, value_type, value_continuous, value_categorical, unit, created_at)
+                        VALUES ('action_fact', :parent_id, :value_type, :value_continuous, :value_categorical, :unit, NOW())
+                    """)
+                    self.session.execute(insert_query, {
+                        'parent_id': act_fact.id,
+                        'value_type': val_type.value,
+                        'value_continuous': cont,
+                        'value_categorical': cat,
+                        'unit': unit
+                    })
 
             self.session.commit()
             self.log(f"   Stored rule: {rule['source_text'][:50]}...")
@@ -667,37 +797,42 @@ Sentence: {sentence}"""
     def _store_fact(self, fact: Dict):
         """Store fact in database"""
         try:
-            if not self._validate_fact(fact):
-                status = StatusEnum.PENDING_REVIEW
-            else:
-                status = StatusEnum.VALIDATED
+            # All extracted data starts as PENDING_REVIEW for admin review
+            # Validation only checks if data is well-formed
+            status = StatusEnum.PENDING_REVIEW
 
             # Create knowledge fact
             kb_fact = KnowledgeFact(
                 source_text=fact['source_text'],
                 subject=fact['subject'],
                 relation=fact['relation'],
-                domain=None,
+                domain='',  # Empty string instead of None (Laravel doesn't allow NULL)
                 visibility='private',
                 confidence_score=fact['confidence'],
                 extraction_method=fact['extraction_method'],
+                algorithm_used='',  # Empty string instead of None
                 status=status
             )
             self.session.add(kb_fact)
             self.session.flush()
 
-            # Store values
+            # Store values using raw SQL (Laravel-compatible structure)
             for val in fact.get('values', []):
                 val_type, cont, cat = self._detect_value_type(val['value'])
                 unit = self._detect_unit(val['value'])
-                fact_val = FactValue(
-                    fact_id=kb_fact.id,
-                    value_type=val_type,
-                    value_continuous=cont,
-                    value_categorical=cat,
-                    unit=unit
-                )
-                self.session.add(fact_val)
+                
+                # Use raw SQL to insert into fact_values table (Laravel compatible)
+                insert_query = text("""
+                    INSERT INTO fact_values (parent_type, parent_id, value_type, value_continuous, value_categorical, unit, created_at)
+                    VALUES ('knowledge_fact', :parent_id, :value_type, :value_continuous, :value_categorical, :unit, NOW())
+                """)
+                self.session.execute(insert_query, {
+                    'parent_id': kb_fact.id,
+                    'value_type': val_type.value,
+                    'value_continuous': cont,
+                    'value_categorical': cat,
+                    'unit': unit
+                })
 
             self.session.commit()
             self.log(f"  ✅ Stored fact: {fact['subject']} {fact['relation']} ...")

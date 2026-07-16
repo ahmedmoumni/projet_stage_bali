@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\KnowledgeRuleController;
 use App\Http\Controllers\KnowledgeFactController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +19,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // Dashboard route
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Knowledge routes
     Route::get('/rules', [KnowledgeRuleController::class, 'index']);

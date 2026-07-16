@@ -238,6 +238,7 @@ def route_pdf(filename, file_content, log):
         'file_type': file_type_result,
         'routing': routing_result,
         'pages': pages,
+        'text': text,
         'text_preview': text_preview,
         'log': log
     }

@@ -19,10 +19,10 @@ class KnowledgeFactController extends Controller
             $query->where('visibility', 'public')
                   ->where('status', 'validated');
         } else {
-            // Admin users: by default show only validated facts
+            // Admin users: by default show both validated and pending_review
             // unless they explicitly filter by status
             if (!$request->has('status') || $request->status === null || $request->status === 'all') {
-                $query->where('status', 'validated');
+                $query->whereIn('status', ['validated', 'pending_review']);
             } elseif ($request->status !== 'all') {
                 $query->where('status', $request->status);
             }
@@ -38,7 +38,7 @@ class KnowledgeFactController extends Controller
             $query->where('domain', $request->domain);
         }
         
-        // Filter by status
+        // Filter by status (if provided explicitly)
         if ($request->has('status') && $request->status !== null && $request->status !== 'all') {
             $query->where('status', $request->status);
         }

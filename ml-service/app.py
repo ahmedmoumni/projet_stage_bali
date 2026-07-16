@@ -4,6 +4,7 @@ import os
 import pandas as pd
 from io import BytesIO
 from dotenv import load_dotenv
+import traceback
 from pipeline0.router import route_document
 from pipeline1 import extract_pipeline1, init_db
 from pipeline2 import train_pipeline2, classify_pipeline2, classify_and_update
@@ -649,6 +650,78 @@ def orchestrate():
             'status': 'error',
             'message': str(e),
             'orchestration_log': [f'❌ Server error: {str(e)}', traceback.format_exc()]
+        }, 500
+
+
+@app.route('/debug/db-status', methods=['GET'])
+def debug_db_status():
+    """
+    DEBUG ENDPOINT: Check database contents
+    Returns all knowledge rules and facts with their status
+    """
+    try:
+        from pipeline1.models import get_session, KnowledgeRule, KnowledgeFact, FactValue
+        session = get_session()
+        
+        # Get all rules
+        rules = session.query(KnowledgeRule).all()
+        rules_data = []
+        for rule in rules:
+            rules_data.append({
+                'id': rule.id,
+                'status': rule.status,
+                'source_text': rule.source_text[:100],
+                'confidence': rule.confidence_score,
+                'domain': rule.domain,
+                'created_at': rule.created_at.isoformat() if rule.created_at else None,
+                'condition_facts': len(rule.condition_facts),
+                'action_facts': len(rule.action_facts)
+            })
+        
+        # Get all facts
+        facts = session.query(KnowledgeFact).all()
+        facts_data = []
+        for fact in facts:
+            facts_data.append({
+                'id': fact.id,
+                'status': fact.status,
+                'subject': fact.subject,
+                'relation': fact.relation,
+                'source_text': fact.source_text[:100],
+                'confidence': fact.confidence_score,
+                'domain': fact.domain,
+                'created_at': fact.created_at.isoformat() if fact.created_at else None,
+                'values_count': len(fact.values)
+            })
+        
+        # Get all fact values
+        fact_values = session.query(FactValue).count()
+        
+        return {
+            'status': 'success',
+            'database': {
+                'total_rules': len(rules),
+                'total_facts': len(facts),
+                'total_fact_values': fact_values,
+                'rules_by_status': {
+                    'pending_review': len([r for r in rules if r.status == 'pending_review']),
+                    'validated': len([r for r in rules if r.status == 'validated']),
+                    'rejected': len([r for r in rules if r.status == 'rejected'])
+                },
+                'facts_by_status': {
+                    'pending_review': len([f for f in facts if f.status == 'pending_review']),
+                    'validated': len([f for f in facts if f.status == 'validated']),
+                    'rejected': len([f for f in facts if f.status == 'rejected'])
+                }
+            },
+            'rules': rules_data,
+            'facts': facts_data
+        }, 200
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': str(e),
+            'trace': traceback.format_exc()
         }, 500
 
 
