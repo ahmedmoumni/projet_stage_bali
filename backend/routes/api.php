@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\KnowledgeRuleController;
 use App\Http\Controllers\KnowledgeFactController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\DashboardController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +23,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Dashboard route
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Analytics routes (admin-only)
+    Route::get('/analytics/monthly', [AnalyticsController::class, 'monthly']);
+    Route::get('/analytics/methods', [AnalyticsController::class, 'methods']);
+    Route::get('/analytics/documents', [AnalyticsController::class, 'documents']);
 
     // Knowledge routes
     Route::get('/rules', [KnowledgeRuleController::class, 'index']);

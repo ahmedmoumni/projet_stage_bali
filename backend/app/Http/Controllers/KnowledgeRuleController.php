@@ -12,21 +12,11 @@ class KnowledgeRuleController extends Controller
         $user = $request->user();
         
         $query = KnowledgeRule::query();
+        $query->where('status', 'validated');
         
-        // If user is public, filter to only public and validated rules
         if (!$user || $user->role === 'public') {
-            $query->where('visibility', 'public')
-                  ->where('status', 'validated');
+            $query->where('visibility', 'public');
         } else {
-            // Admin users: by default show both validated and pending_review
-            // unless they explicitly filter by status
-            if (!$request->has('status') || $request->status === null || $request->status === 'all') {
-                $query->whereIn('status', ['validated', 'pending_review']);
-            } elseif ($request->status !== 'all') {
-                $query->where('status', $request->status);
-            }
-            
-            // Admin users can filter visibility if specified
             if ($request->has('visibility') && $request->visibility !== null && $request->visibility !== 'all') {
                 $query->where('visibility', $request->visibility);
             }
@@ -35,11 +25,6 @@ class KnowledgeRuleController extends Controller
         // Filter by domain
         if ($request->has('domain') && $request->domain !== null && $request->domain !== 'all') {
             $query->where('domain', $request->domain);
-        }
-        
-        // Filter by status (if provided explicitly)
-        if ($request->has('status') && $request->status !== null && $request->status !== 'all') {
-            $query->where('status', $request->status);
         }
         
         // Search by source_text

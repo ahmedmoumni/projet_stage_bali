@@ -124,6 +124,11 @@ export const KnowledgeRules: React.FC = () => {
           {user?.role === 'admin' && (
             <>
               <li className="knowledge-rules-sidebar-item">
+                <a href="/analytics" className={`knowledge-rules-sidebar-link ${isActive('/analytics')}`}>
+                  Analytics
+                </a>
+              </li>
+              <li className="knowledge-rules-sidebar-item">
                 <a href="/pending-review" className={`knowledge-rules-sidebar-link ${isActive('/pending-review')}`}>
                   Pending Review
                 </a>
@@ -218,7 +223,6 @@ export const KnowledgeRules: React.FC = () => {
                 >
                   <option value="all">All</option>
                   <option value="validated">Validated</option>
-                  <option value="pending_review">Pending Review</option>
                 </select>
               </div>
 

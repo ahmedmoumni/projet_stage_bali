@@ -8,6 +8,7 @@ import { Upload } from './pages/Upload';
 import { KnowledgeRules } from './pages/KnowledgeRules';
 import { KnowledgeFacts } from './pages/KnowledgeFacts';
 import { PendingReview } from './pages/PendingReview';
+import { Analytics } from './pages/Analytics';
 import './App.css';
 
 function App() {
@@ -54,6 +55,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <PendingReview />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <Analytics />
               </ProtectedRoute>
             }
           />

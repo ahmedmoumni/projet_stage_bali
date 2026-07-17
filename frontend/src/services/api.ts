@@ -141,4 +141,14 @@ export const pendingAPI = {
     api.put(`/pending/${type}/${id}`, data),
 };
 
+export const analyticsAPI = {
+  monthly: () => api.get<any>('/analytics/monthly'),
+  methods: () => api.get<any>('/analytics/methods'),
+  documents: (page: number) => {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    return api.get<any>(`/analytics/documents?${params.toString()}`);
+  },
+};
+
 export default api;

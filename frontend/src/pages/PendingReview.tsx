@@ -178,17 +178,24 @@ export const PendingReview: React.FC = () => {
               Knowledge Facts
             </a>
           </li>
-          <li className="pending-review-sidebar-item">
-            <a href="/pending-review" className="pending-review-sidebar-link active">
-              Pending Review
-            </a>
-          </li>
           {user?.role === 'admin' && (
-            <li className="pending-review-sidebar-item">
-              <a href="/upload" className="pending-review-sidebar-link">
-                Upload
-              </a>
-            </li>
+            <>
+              <li className="pending-review-sidebar-item">
+                <a href="/analytics" className="pending-review-sidebar-link">
+                  Analytics
+                </a>
+              </li>
+              <li className="pending-review-sidebar-item">
+                <a href="/pending-review" className="pending-review-sidebar-link active">
+                  Pending Review
+                </a>
+              </li>
+              <li className="pending-review-sidebar-item">
+                <a href="/upload" className="pending-review-sidebar-link">
+                  Upload
+                </a>
+              </li>
+            </>
           )}
         </ul>
       </aside>

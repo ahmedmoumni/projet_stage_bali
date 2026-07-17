@@ -13,11 +13,11 @@ interface DashboardStats {
   total_documents: number;
 }
 
-// Icons (using Unicode/Emoji)
-const RulesIcon = () => <span>📋</span>;
-const FactsIcon = () => <span>📊</span>;
-const ValidatedIcon = () => <span>✓</span>;
-const PendingIcon = () => <span>⏳</span>;
+// Icons
+const RulesIcon = () => <span></span>;
+const FactsIcon = () => <span></span>;
+const ValidatedIcon = () => <span></span>;
+const PendingIcon = () => <span></span>;
 
 export const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -94,6 +94,11 @@ export const Dashboard = () => {
           </li>
           {user?.role === 'admin' && (
             <>
+              <li className="dashboard-sidebar-item">
+                <a href="/analytics" className={`dashboard-sidebar-link ${isActive('/analytics')}`}>
+                  Analytics
+                </a>
+              </li>
               <li className="dashboard-sidebar-item">
                 <a href="/pending-review" className={`dashboard-sidebar-link ${isActive('/pending-review')}`}>
                   Pending Review
@@ -173,7 +178,7 @@ export const Dashboard = () => {
               {/* Additional Info Section */}
               <div className="dashboard-info-section">
                 <div className="dashboard-info-card">
-                  <h3>📄 Documents</h3>
+                  <h3> Documents</h3>
                   <p className="dashboard-info-value">{stats.total_documents}</p>
                   <p className="dashboard-info-label">Documents Uploaded</p>
                 </div>

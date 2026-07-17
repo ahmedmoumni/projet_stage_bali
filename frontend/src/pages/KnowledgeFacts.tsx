@@ -137,6 +137,11 @@ export const KnowledgeFacts: React.FC = () => {
           {user?.role === 'admin' && (
             <>
               <li className="knowledge-facts-sidebar-item">
+                <a href="/analytics" className={`knowledge-facts-sidebar-link ${isActive('/analytics')}`}>
+                  Analytics
+                </a>
+              </li>
+              <li className="knowledge-facts-sidebar-item">
                 <a href="/pending-review" className={`knowledge-facts-sidebar-link ${isActive('/pending-review')}`}>
                   Pending Review
                 </a>
@@ -231,7 +236,6 @@ export const KnowledgeFacts: React.FC = () => {
                 >
                   <option value="all">All</option>
                   <option value="validated">Validated</option>
-                  <option value="pending_review">Pending Review</option>
                 </select>
               </div>
 
