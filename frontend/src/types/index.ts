@@ -111,6 +111,20 @@ export type Domain = 'social' | 'economy' | 'infrastructure' | 'health' | 'cultu
 export type Status = 'validated' | 'pending_review';
 export type ExtractionMethod = 'spacy' | 'llm';
 
+export interface RuleFact {
+  id: number;
+  subject: string;
+  operator: string;
+  logical_operator: string | null;
+  group_id: number | null;
+}
+
+// Extend RuleFact with possible nested fact values returned by the backend
+export interface RuleFactWithValues extends RuleFact {
+  fact_values?: FactValue[];
+  factValues?: FactValue[];
+}
+
 export interface KnowledgeRule {
   id: number;
   source_text: string;
@@ -121,6 +135,10 @@ export interface KnowledgeRule {
   extraction_method: ExtractionMethod;
   algorithm_used: string | null;
   created_at: string;
+  condition_facts?: RuleFactWithValues[];
+  action_facts?: RuleFactWithValues[];
+  conditionFacts?: RuleFactWithValues[];
+  actionFacts?: RuleFactWithValues[];
 }
 
 export interface PaginatedResponse<T> {
@@ -168,6 +186,21 @@ export interface PendingItem {
   confidence_score: number;
   extraction_method: ExtractionMethod;
   created_at: string;
+  conditions?: Array<{
+    id: number;
+    subject: string;
+    operator: string;
+    logical_operator: string | null;
+    values: FactValue[];
+  }>;
+  actions?: Array<{
+    id: number;
+    subject: string;
+    operator: string;
+    logical_operator: string | null;
+    values: FactValue[];
+  }>;
+  values?: FactValue[];
 }
 
 export interface EditPayload {

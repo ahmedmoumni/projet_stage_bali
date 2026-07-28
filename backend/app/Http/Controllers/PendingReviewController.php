@@ -52,8 +52,44 @@ class PendingReviewController extends Controller
             $facts = $factsQuery->get();
         }
 
-        // Transform rules to include type field
+        // Transform rules to include type field and nested condition/action details
         $rulesData = $rules->map(function ($rule) {
+            $conditionFacts = $rule->conditionFacts()->with('factValues')->get()->map(function ($condition) {
+                return [
+                    'id' => $condition->id,
+                    'subject' => $condition->subject,
+                    'operator' => $condition->operator,
+                    'logical_operator' => $condition->logical_operator,
+                    'values' => $condition->factValues->map(function ($value) {
+                        return [
+                            'id' => $value->id,
+                            'value_type' => $value->value_type,
+                            'value_continuous' => $value->value_continuous,
+                            'value_categorical' => $value->value_categorical,
+                            'unit' => $value->unit,
+                        ];
+                    })->values(),
+                ];
+            })->values();
+
+            $actionFacts = $rule->actionFacts()->with('factValues')->get()->map(function ($action) {
+                return [
+                    'id' => $action->id,
+                    'subject' => $action->subject,
+                    'operator' => $action->operator,
+                    'logical_operator' => $action->logical_operator,
+                    'values' => $action->factValues->map(function ($value) {
+                        return [
+                            'id' => $value->id,
+                            'value_type' => $value->value_type,
+                            'value_continuous' => $value->value_continuous,
+                            'value_categorical' => $value->value_categorical,
+                            'unit' => $value->unit,
+                        ];
+                    })->values(),
+                ];
+            })->values();
+
             return [
                 'id' => $rule->id,
                 'type' => 'rule',
@@ -63,11 +99,23 @@ class PendingReviewController extends Controller
                 'confidence_score' => $rule->confidence_score,
                 'extraction_method' => $rule->extraction_method,
                 'created_at' => $rule->created_at,
+                'conditions' => $conditionFacts,
+                'actions' => $actionFacts,
             ];
         });
 
-        // Transform facts to include type field
+        // Transform facts to include type field and nested values
         $factsData = $facts->map(function ($fact) {
+            $values = $fact->factValues()->get()->map(function ($value) {
+                return [
+                    'id' => $value->id,
+                    'value_type' => $value->value_type,
+                    'value_continuous' => $value->value_continuous,
+                    'value_categorical' => $value->value_categorical,
+                    'unit' => $value->unit,
+                ];
+            })->values();
+
             return [
                 'id' => $fact->id,
                 'type' => 'fact',
@@ -79,6 +127,7 @@ class PendingReviewController extends Controller
                 'confidence_score' => $fact->confidence_score,
                 'extraction_method' => $fact->extraction_method,
                 'created_at' => $fact->created_at,
+                'values' => $values,
             ];
         });
 

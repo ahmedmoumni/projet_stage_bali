@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { pendingAPI } from '../services/api';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EditModal } from '../components/EditModal';
-import { DomainBadge } from '../components/DomainBadge';
 import { useAuth } from '../api/AuthContext';
 import type { PendingItem, EditPayload } from '../types/index';
 import './PendingReview.css';
@@ -147,6 +146,57 @@ export const PendingReview: React.FC = () => {
     return text;
   };
 
+  const renderRuleDetails = (item: PendingItem) => {
+    return (
+      <div className="pending-review-details-card">
+        <div className="pending-review-details-section">
+          <h4>Conditions</h4>
+          {(item.conditions || []).length > 0 ? (
+            <ul>
+              {(item.conditions || []).map((condition) => (
+                <li key={condition.id}>
+                  <strong>{condition.subject}</strong> {condition.operator}{' '}
+                  {condition.values?.map((value) => value.value_categorical ?? value.value_continuous).filter(Boolean).join(', ')}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No conditions</p>
+          )}
+        </div>
+
+        <div className="pending-review-details-section">
+          <h4>Actions</h4>
+          {(item.actions || []).length > 0 ? (
+            <ul>
+              {(item.actions || []).map((action) => (
+                <li key={action.id}>
+                  <strong>{action.subject}</strong> {action.operator}{' '}
+                  {action.values?.map((value) => value.value_categorical ?? value.value_continuous).filter(Boolean).join(', ')}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No actions</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderFactDetails = (item: PendingItem) => {
+    return (
+      <div className="pending-review-details-card">
+        <div className="pending-review-details-section">
+          <h4>Fact</h4>
+          <p><strong>Subject:</strong> {item.subject || 'N/A'}</p>
+          <p><strong>Relation:</strong> {item.relation || 'N/A'}</p>
+          <p><strong>Values:</strong> {(item.values || []).map((value) => value.value_categorical ?? value.value_continuous).filter(Boolean).join(', ') || 'None'}</p>
+        </div>
+      </div>
+    );
+  };
+
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= lastPage) {
       setPage(newPage);
@@ -250,78 +300,73 @@ export const PendingReview: React.FC = () => {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Two-column sections */}
         {loading ? (
           <div className="pending-review-loading">Loading...</div>
         ) : items.length === 0 ? (
           <div className="pending-review-empty">No pending items</div>
         ) : (
           <>
-            <div className="pending-review-table-wrapper">
-              <table className="pending-review-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Type</th>
-                    <th>Source Text</th>
-                    <th>Domain</th>
-                    <th>Confidence</th>
-                    <th>Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={`${item.type}-${item.id}`}>
-                      <td className="pending-review-cell-id">{item.id}</td>
-                      <td>
-                        <span className={`pending-review-type-badge pending-review-type-${item.type}`}>
-                          {item.type === 'rule' ? 'Rule' : 'Fact'}
-                        </span>
-                      </td>
-                      <td className="pending-review-cell-text">
-                        {truncateText(item.source_text, 60)}
-                      </td>
-                      <td>
-                        {item.domain ? (
-                          <DomainBadge domain={item.domain} />
-                        ) : (
-                          <span className="pending-review-domain-unclassified">Unclassified</span>
-                        )}
-                      </td>
-                      <td className="pending-review-cell-confidence">
-                        {(item.confidence_score * 100).toFixed(0)}%
-                      </td>
-                      <td className="pending-review-cell-date">
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="pending-review-cell-actions">
-                        <button
-                          className="pending-review-btn-approve"
-                          onClick={() => handleApproveClick(item)}
-                          title="Approve"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="pending-review-btn-edit"
-                          onClick={() => handleEditClick(item)}
-                          title="Edit"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="pending-review-btn-reject"
-                          onClick={() => handleRejectClick(item)}
-                          title="Reject"
-                        >
-                          Reject
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="pending-review-grid">
+              <section className="pending-review-panel">
+                <div className="pending-review-panel-header">
+                  <h3>Rules</h3>
+                </div>
+                <div className="pending-review-panel-body">
+                  {items.filter((item) => item.type === 'rule').length > 0 ? (
+                    items.filter((item) => item.type === 'rule').map((item) => (
+                      <div key={`rule-${item.id}`} className="pending-review-item-card">
+                        <div className="pending-review-item-top">
+                          <div className="pending-review-item-title">#{item.id}</div>
+                          <div className="pending-review-item-meta">
+                            <span className="pending-review-type-badge pending-review-type-rule">Rule</span>
+                            <span>{(item.confidence_score * 100).toFixed(0)}%</span>
+                          </div>
+                        </div>
+                        <p className="pending-review-item-source">{truncateText(item.source_text, 120)}</p>
+                        {renderRuleDetails(item)}
+                        <div className="pending-review-item-actions">
+                          <button className="pending-review-btn-approve" onClick={() => handleApproveClick(item)}>Approve</button>
+                          <button className="pending-review-btn-edit" onClick={() => handleEditClick(item)}>Edit</button>
+                          <button className="pending-review-btn-reject" onClick={() => handleRejectClick(item)}>Reject</button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="pending-review-empty-card">No rules pending</div>
+                  )}
+                </div>
+              </section>
+
+              <section className="pending-review-panel">
+                <div className="pending-review-panel-header">
+                  <h3>Facts</h3>
+                </div>
+                <div className="pending-review-panel-body">
+                  {items.filter((item) => item.type === 'fact').length > 0 ? (
+                    items.filter((item) => item.type === 'fact').map((item) => (
+                      <div key={`fact-${item.id}`} className="pending-review-item-card">
+                        <div className="pending-review-item-top">
+                          <div className="pending-review-item-title">#{item.id}</div>
+                          <div className="pending-review-item-meta">
+                            <span className="pending-review-type-badge pending-review-type-fact">Fact</span>
+                            <span>{(item.confidence_score * 100).toFixed(0)}%</span>
+                          </div>
+                        </div>
+                        <p className="pending-review-item-source">{truncateText(item.source_text, 120)}</p>
+                        {renderFactDetails(item)}
+                        <div className="pending-review-item-actions">
+                          <button className="pending-review-btn-approve" onClick={() => handleApproveClick(item)}>Approve</button>
+                          <button className="pending-review-btn-edit" onClick={() => handleEditClick(item)}>Edit</button>
+                          <button className="pending-review-btn-reject" onClick={() => handleRejectClick(item)}>Reject</button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="pending-review-empty-card">No facts pending</div>
+                  )}
+                </div>
+              </section>
             </div>
 
             {/* Pagination */}

@@ -51,9 +51,11 @@ def get_groq_client():
     if _groq_client is None:
         try:
             if groq_api_key:
-                _groq_client = Groq(api_key=groq_api_key)
+                # Initialize Groq - let it use GROQ_API_KEY from environment
+                _groq_client = Groq()
+                print(f"✅ Groq client initialized successfully")
             else:
-                print("⚠️  GROQ_API_KEY not set - LLM fallback will be unavailable")
+                print("⚠️  GROQ_API_KEY not set in environment")
                 _groq_client = None
         except Exception as e:
             print(f"⚠️  Failed to initialize Groq client: {str(e)}")
@@ -235,7 +237,7 @@ Respond with only the word 'rule' or 'fact'.
 Sentence: {sentence}"""
 
             response = groq_client.chat.completions.create(
-                model="mixtral-8x7b-32768",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
                 max_tokens=10
@@ -255,42 +257,10 @@ Sentence: {sentence}"""
         Extract IF-THEN rule using spaCy
         Returns: Rule dict or None
         """
-        if not nlp:
-            return None
-
-        try:
-            doc = nlp(sentence)
-
-            # Extract conditions (IF part) and actions (THEN part)
-            conditions = self._extract_conditions(doc, sentence)
-            actions = self._extract_actions(doc, sentence)
-
-            if not conditions or not actions:
-                self.log(f"  Missing conditions or actions")
-                return None
-
-            # Calculate confidence
-            confidence = self._calculate_confidence(conditions, actions)
-
-            # If low confidence, use LLM
-            if confidence < 0.8:
-                self.log(f"  Low confidence ({confidence}), using LLM")
-                return self._llm_extract_rule(sentence)
-
-            return {
-                'type': 'rule',
-                'source_text': sentence,
-                'conditions': conditions,
-                'actions': actions,
-                'condition_group_operator': 'AND',
-                'action_group_operator': 'AND',
-                'confidence': confidence,
-                'extraction_method': 'spacy'
-            }
-
-        except Exception as e:
-            self.log(f"   spaCy extraction failed: {str(e)}, trying LLM")
-            return self._llm_extract_rule(sentence)
+        # For RULES, always use LLM for best accuracy and to avoid duplication
+        # spaCy struggles with complex rule extraction
+        self.log(f"  Using LLM for rule extraction (more reliable)")
+        return self._llm_extract_rule(sentence)
 
     def _extract_fact(self, sentence: str) -> Optional[Dict]:
         """
@@ -330,26 +300,39 @@ Sentence: {sentence}"""
                 self.log(f"  No relation found")
                 return None
 
-            # Find objects (dobj, pobj) - include modifiers
+            # Find objects (dobj, pobj) - include modifiers AND conjunctions (and/or)
             values = []
             seen_values = set()
+            collected_tokens = set()
+            
             for token in doc:
-                if token.dep_ in ["dobj", "pobj", "attr", "nmod"]:
-                    # Include modifiers for compound objects
-                    value_parts = []
-                    for child in token.subtree:
-                        if child.dep_ in ["compound", "amod", "det"]:
-                            value_parts.append(child.text)
-                    value_parts.append(token.text)
-                    value_text = " ".join(value_parts)
+                if token.dep_ in ["dobj", "pobj", "attr", "nmod"] and token not in collected_tokens:
+                    # Get this token and all its conjunctions
+                    objects_to_process = [token]
                     
-                    if value_text not in seen_values:
-                        seen_values.add(value_text)
-                        values.append({
-                            'value': value_text,
-                            'value_type': 'categorical',
-                            'unit': None
-                        })
+                    # Find all tokens connected by "and" or "or" (conj dependency)
+                    for child in token.subtree:
+                        if child.dep_ == "conj" and child not in collected_tokens:
+                            objects_to_process.append(child)
+                    
+                    # Process each object
+                    for obj_token in objects_to_process:
+                        collected_tokens.add(obj_token)
+                        # Include modifiers for compound objects
+                        value_parts = []
+                        for child in obj_token.subtree:
+                            if child.dep_ in ["compound", "amod", "det"] and child != obj_token:
+                                value_parts.append(child.text)
+                        value_parts.append(obj_token.text)
+                        value_text = " ".join(value_parts)
+                        
+                        if value_text not in seen_values:
+                            seen_values.add(value_text)
+                            values.append({
+                                'value': value_text,
+                                'value_type': 'categorical',
+                                'unit': None
+                            })
 
             if not values:
                 self.log(f"  No values found")
@@ -357,7 +340,7 @@ Sentence: {sentence}"""
 
             confidence = self._calculate_confidence({'subject': subject}, {'relation': relation, 'values': values})
 
-            if confidence < 0.8:
+            if confidence < 0.7:
                 self.log(f"  Low confidence ({confidence}), using LLM")
                 return self._llm_extract_fact(sentence)
 
@@ -407,14 +390,8 @@ Sentence: {sentence}"""
                 
                 # Find objects, numbers, and values
                 for child in root_verb.children:
-                    if child.dep_ in ["dobj", "attr", "nmod", "compound", "pobj"]:
-                        # Add value with modifiers
-                        value_parts = []
-                        for subchild in child.subtree:
-                            if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
-                                value_parts.append(subchild.text)
-                        value_parts.append(child.text)
-                        value_text = " ".join(value_parts)
+                    if child.dep_ in ["dobj", "attr", "nmod", "pobj", "prep"]:
+                        value_text = self._get_phrase(child)
                         
                         condition['values'].append({
                             'value': value_text,
@@ -431,6 +408,8 @@ Sentence: {sentence}"""
                 if condition['values'] or root_verb.lemma_ in RULE_MARKERS:
                     conditions.append(condition)
 
+        # Detect logical operators between conditions
+        self._detect_logical_operators(conditions, sentence)
         return conditions
 
     def _extract_actions(self, doc, sentence: str) -> List[Dict]:
@@ -442,7 +421,7 @@ Sentence: {sentence}"""
         if root and root.pos_ == "VERB":
             action = {
                 'subject': '',
-                'operator': '=',
+                'operator': root.lemma_.lower(),
                 'values': [],
                 'logical_operator': None,
                 'group_id': 0
@@ -451,22 +430,9 @@ Sentence: {sentence}"""
             # Find subject and objects of root verb
             for child in root.children:
                 if child.dep_ == "nsubj":
-                    # Include subject modifiers
-                    subject_parts = []
-                    for subchild in child.subtree:
-                        if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
-                            subject_parts.append(subchild.text)
-                    subject_parts.append(child.text)
-                    action['subject'] = " ".join(subject_parts)
-                elif child.dep_ in ["dobj", "attr", "pobj"]:
-                    # Include value modifiers
-                    value_parts = []
-                    for subchild in child.subtree:
-                        if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
-                            value_parts.append(subchild.text)
-                    value_parts.append(child.text)
-                    value_text = " ".join(value_parts)
-                    
+                    action['subject'] = self._get_phrase(child)
+                elif child.dep_ in ["dobj", "attr", "pobj", "prep"]:
+                    value_text = self._get_phrase(child)
                     action['values'].append({
                         'value': value_text,
                         'value_type': 'categorical',
@@ -481,7 +447,7 @@ Sentence: {sentence}"""
             if token.pos_ in ["VERB"] and token != root:
                 action = {
                     'subject': '',
-                    'operator': '=',
+                    'operator': token.lemma_.lower(),
                     'values': [],
                     'logical_operator': None,
                     'group_id': 0
@@ -490,22 +456,9 @@ Sentence: {sentence}"""
                 # Find subject and object
                 for child in token.children:
                     if child.dep_ == "nsubj":
-                        # Include subject modifiers
-                        subject_parts = []
-                        for subchild in child.subtree:
-                            if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
-                                subject_parts.append(subchild.text)
-                        subject_parts.append(child.text)
-                        action['subject'] = " ".join(subject_parts)
-                    elif child.dep_ in ["dobj", "attr", "pobj"]:
-                        # Include value modifiers
-                        value_parts = []
-                        for subchild in child.subtree:
-                            if subchild.dep_ in ["compound", "amod", "det"] and subchild != child:
-                                value_parts.append(subchild.text)
-                        value_parts.append(child.text)
-                        value_text = " ".join(value_parts)
-                        
+                        action['subject'] = self._get_phrase(child)
+                    elif child.dep_ in ["dobj", "attr", "pobj", "prep"]:
+                        value_text = self._get_phrase(child)
                         action['values'].append({
                             'value': value_text,
                             'value_type': 'categorical',
@@ -514,33 +467,162 @@ Sentence: {sentence}"""
 
                 if action['subject'] or action['values']:
                     # Check if not already added
-                    if not any(a['subject'] == action['subject'] for a in actions):
+                    if not any(a['subject'] == action['subject'] and a['operator'] == action['operator'] for a in actions):
                         actions.append(action)
 
+        # Detect logical operators between actions
+        self._detect_logical_operators(actions, sentence)
         return actions
+
+    def _detect_logical_operators(self, items: List[Dict], sentence: str) -> None:
+        """Detect logical operators (AND/OR) between items in a list"""
+        if len(items) <= 1:
+            return
+        
+        sentence_lower = sentence.lower()
+        
+        # Look for 'and' / 'or' patterns between items
+        and_pattern = r'\band\b'
+        or_pattern = r'\bor\b'
+        
+        # Simple heuristic: if the sentence contains more 'or' than 'and',
+        # assume OR is the primary operator, otherwise AND
+        and_count = len(re.findall(and_pattern, sentence_lower))
+        or_count = len(re.findall(or_pattern, sentence_lower))
+        
+        # Default to AND if equal or more ANDs
+        default_operator = 'OR' if or_count > and_count else 'AND'
+        
+        # Set logical operator for all items except the first
+        for i in range(1, len(items)):
+            items[i]['logical_operator'] = default_operator
+
+    def _normalize_value_payloads(self, values: Optional[List[Dict]]) -> List[Dict]:
+        """Normalize extracted values into the list-of-dicts form expected by storage."""
+        if not values:
+            return []
+
+        normalized_values = []
+        for value in values:
+            if isinstance(value, dict):
+                value_text = value.get('value') or value.get('text') or value.get('raw') or ''
+                normalized_values.append({
+                    'value': value_text,
+                    'value_type': value.get('value_type', 'categorical'),
+                    'unit': value.get('unit')
+                })
+            elif isinstance(value, str):
+                normalized_values.append({
+                    'value': value,
+                    'value_type': 'categorical',
+                    'unit': None
+                })
+
+        return normalized_values
+
+    def _normalize_rule_structure(self, rule: Optional[Dict]) -> Optional[Dict]:
+        """Convert LLM rule output into the structure expected by the storage layer."""
+        if not rule:
+            return None
+
+        normalized_rule = dict(rule)
+
+        normalized_conditions = []
+        for cond in rule.get('conditions', []) or []:
+            if not isinstance(cond, dict):
+                continue
+            normalized_cond = dict(cond)
+            normalized_cond['values'] = self._normalize_value_payloads(cond.get('values') or ([{'value': cond.get('value')}] if cond.get('value') else []))
+            normalized_conditions.append(normalized_cond)
+        normalized_rule['conditions'] = normalized_conditions
+
+        normalized_actions = []
+        for act in rule.get('actions', []) or []:
+            if not isinstance(act, dict):
+                continue
+            normalized_act = dict(act)
+            normalized_act['values'] = self._normalize_value_payloads(act.get('values') or ([{'value': act.get('value')}] if act.get('value') else []))
+            normalized_actions.append(normalized_act)
+        normalized_rule['actions'] = normalized_actions
+
+        return normalized_rule
+
+    def _normalize_fact_structure(self, fact: Optional[Dict]) -> Optional[Dict]:
+        """Convert LLM fact output into the structure expected by the storage layer."""
+        if not fact:
+            return None
+
+        normalized_fact = dict(fact)
+        normalized_fact['values'] = self._normalize_value_payloads(
+            fact.get('values') or ([{'value': fact.get('value')}] if fact.get('value') else [])
+        )
+        return normalized_fact
+
+    def _get_phrase(self, token) -> str:
+        """Build a phrase from a token subtree including modifiers and prepositional phrases."""
+        phrase_tokens = [t for t in token.subtree if t.dep_ in [
+            'compound', 'amod', 'det', 'nummod', 'prep', 'pobj', 'nmod', 'poss', 'attr', 'appos'
+        ] or t == token]
+        phrase_tokens = sorted(phrase_tokens, key=lambda t: t.i)
+        return ' '.join([t.text for t in phrase_tokens])
 
     # ============ LLM EXTRACTION FALLBACK ============
 
     def _llm_extract_rule(self, sentence: str) -> Optional[Dict]:
         """Use Groq API to extract rule"""
         try:
-            prompt = f"""Extract a structured IF-THEN rule from this sentence.
+            prompt = f"""Extract a structured IF-THEN rule from this sentence in English or French.
 Return ONLY a JSON object with no markdown or explanation.
 
-Format:
+CRITICAL: Each condition and action MUST have a non-empty "value" field.
+Never return conditions/actions with empty values.
+
+A rule has CONDITIONS (IF part) and ACTIONS (THEN part).
+Each condition/action is: subject (what) + operator (how) + value (what value)
+
+Examples with COMPLETE values:
+
+Example 1 (English):
+Sentence: "If water consumption exceeds 300 liters, the village reports a leak."
 {{
   "conditions": [
-    {{"subject": "string", "operator": "string", "value": "string", "logical_operator": "AND"/"OR"/null}}
+    {{"subject": "water_consumption", "operator": ">", "value": "300 liters", "logical_operator": null}}
   ],
   "actions": [
-    {{"subject": "string", "operator": "string", "value": "string", "logical_operator": "AND"/"OR"/null}}
+    {{"subject": "village", "operator": "reports", "value": "a leak", "logical_operator": null}}
   ],
-  "condition_group_operator": "AND"/"OR",
-  "action_group_operator": "AND"/"OR",
-  "confidence": 0.0-1.0
+  "condition_group_operator": "AND",
+  "action_group_operator": "AND",
+  "confidence": 0.92
 }}
 
-Sentence: {sentence}"""
+Example 2 (English):
+Sentence: "Elderly residents above 60 years old rarely use digital services."
+{{
+  "conditions": [
+    {{"subject": "residents", "operator": "age", "value": "above 60 years", "logical_operator": null}},
+    {{"subject": "residents", "operator": "status", "value": "elderly", "logical_operator": "AND"}}
+  ],
+  "actions": [
+    {{"subject": "digital_services", "operator": "usage", "value": "rarely used", "logical_operator": null}}
+  ],
+  "condition_group_operator": "AND",
+  "action_group_operator": "AND",
+  "confidence": 0.88
+}}
+
+Example 3 (Multiple conjunctions):
+Sentence: "The north district lacks clean water and electricity."
+NOT A RULE - this would be a FACT. A rule needs IF-THEN structure.
+
+Now extract the rule from:
+Sentence: {sentence}
+
+RULES:
+- Each condition must have subject, operator, AND a non-empty value
+- Each action must have subject, operator, AND a non-empty value  
+- If no clear rule structure, return null
+- Return ONLY valid JSON, no explanation"""
 
             groq_client = get_groq_client()
             if not groq_client:
@@ -548,7 +630,7 @@ Sentence: {sentence}"""
                 return None
             
             response = groq_client.chat.completions.create(
-                model="mixtral-8x7b-32768",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
                 max_tokens=500
@@ -556,15 +638,62 @@ Sentence: {sentence}"""
             
             result_text = response.choices[0].message.content.strip()
 
-            # Try to parse JSON
+            # Try to parse JSON - clean up any markdown or extra text
             try:
+                # Remove markdown code blocks if present
+                if result_text.startswith('```'):
+                    result_text = result_text.split('```')[1]
+                    if result_text.startswith('json'):
+                        result_text = result_text[4:]
+                    result_text = result_text.strip()
+                
+                # Find JSON object
+                json_start = result_text.find('{')
+                json_end = result_text.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    result_text = result_text[json_start:json_end]
+                
                 extracted = json.loads(result_text)
+                extracted = self._normalize_rule_structure(extracted)
+                
+                # Validate that conditions and actions have values
+                if extracted is None:
+                    self.log(f"  LLM returned null - not a rule")
+                    return None
+                
+                conditions = extracted.get('conditions', [])
+                actions = extracted.get('actions', [])
+                
+                # Check for empty values
+                for cond in conditions:
+                    if not self._normalize_value_payloads(cond.get('values') or ([{'value': cond.get('value')}] if cond.get('value') else [])):
+                        self.log(f"  Invalid rule: condition missing value: {cond}")
+                        return None
+                
+                for action in actions:
+                    if not self._normalize_value_payloads(action.get('values') or ([{'value': action.get('value')}] if action.get('value') else [])):
+                        self.log(f"  Invalid rule: action missing value: {action}")
+                        return None
+                
+                if not conditions or not actions:
+                    self.log(f"  Invalid rule: missing conditions or actions")
+                    return None
+                
                 extracted['source_text'] = sentence
                 extracted['type'] = 'rule'
                 extracted['extraction_method'] = 'llm'
+                
+                # Detect and fill in logical operators if missing
+                if 'conditions' in extracted:
+                    self._detect_logical_operators(extracted['conditions'], sentence)
+                if 'actions' in extracted:
+                    self._detect_logical_operators(extracted['actions'], sentence)
+                
+                self.log(f"  ✓ LLM extracted rule successfully with {len(conditions)} conditions, {len(actions)} actions")
                 return extracted
-            except json.JSONDecodeError:
-                self.log(f"   Invalid JSON from LLM")
+            except json.JSONDecodeError as e:
+                self.log(f"   Invalid JSON from LLM: {str(e)}")
+                self.log(f"   Raw response: {result_text[:100]}")
                 return None
 
         except Exception as e:
@@ -574,20 +703,40 @@ Sentence: {sentence}"""
     def _llm_extract_fact(self, sentence: str) -> Optional[Dict]:
         """Use Groq API to extract fact"""
         try:
-            prompt = f"""Extract a subject-relation-object fact from this sentence.
+            prompt = f"""Extract a subject-relation-object fact from this sentence in English or French.
 Return ONLY a JSON object with no markdown or explanation.
 
-Format:
+A fact has a SUBJECT, RELATION, and one or more VALUES.
+
+Example 1 (English):
+Sentence: "The north district lacks clean water and electricity."
+JSON:
 {{
-  "subject": "string",
-  "relation": "string",
+  "subject": "north_district",
+  "relation": "lacks",
   "values": [
-    {{"value": "string", "value_type": "continuous"/"categorical", "unit": null/"string"}}
+    {{"value": "clean water", "value_type": "categorical", "unit": null}},
+    {{"value": "electricity", "value_type": "categorical", "unit": null}}
   ],
-  "confidence": 0.0-1.0
+  "confidence": 0.95
 }}
 
-Sentence: {sentence}"""
+Example 2 (French):
+Sentence: "Desa Punggul est un village de 500 personnes."
+JSON:
+{{
+  "subject": "Desa Punggul",
+  "relation": "has",
+  "values": [
+    {{"value": "500", "value_type": "continuous", "unit": "people"}}
+  ],
+  "confidence": 0.90
+}}
+
+Now extract the fact from:
+Sentence: {sentence}
+
+Important: Return ONLY valid JSON, no extra text."""
 
             groq_client = get_groq_client()
             if not groq_client:
@@ -595,7 +744,7 @@ Sentence: {sentence}"""
                 return None
             
             response = groq_client.chat.completions.create(
-                model="mixtral-8x7b-32768",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0,
                 max_tokens=300
@@ -604,13 +753,29 @@ Sentence: {sentence}"""
             result_text = response.choices[0].message.content.strip()
 
             try:
+                # Remove markdown code blocks if present
+                if result_text.startswith('```'):
+                    result_text = result_text.split('```')[1]
+                    if result_text.startswith('json'):
+                        result_text = result_text[4:]
+                    result_text = result_text.strip()
+                
+                # Find JSON object
+                json_start = result_text.find('{')
+                json_end = result_text.rfind('}') + 1
+                if json_start >= 0 and json_end > json_start:
+                    result_text = result_text[json_start:json_end]
+                
                 extracted = json.loads(result_text)
+                extracted = self._normalize_fact_structure(extracted)
                 extracted['source_text'] = sentence
                 extracted['type'] = 'fact'
                 extracted['extraction_method'] = 'llm'
+                self.log(f"  ✓ LLM extracted fact successfully")
                 return extracted
-            except json.JSONDecodeError:
-                self.log(f"    Invalid JSON from LLM")
+            except json.JSONDecodeError as e:
+                self.log(f"    Invalid JSON from LLM: {str(e)}")
+                self.log(f"    Raw response: {result_text[:100]}")
                 return None
 
         except Exception as e:
@@ -740,9 +905,13 @@ Sentence: {sentence}"""
                 self.session.flush()
 
                 # Store condition values using raw SQL (Laravel-compatible structure)
-                for val in cond.get('values', []):
-                    val_type, cont, cat = self._detect_value_type(val['value'])
-                    unit = self._detect_unit(val['value'])
+                for val in self._normalize_value_payloads(cond.get('values', [])):
+                    value_text = val.get('value') or ''
+                    if not value_text:
+                        continue
+
+                    val_type, cont, cat = self._detect_value_type(value_text)
+                    unit = self._detect_unit(value_text)
                     
                     # Use raw SQL to insert into fact_values table (Laravel compatible)
                     insert_query = text("""
@@ -770,9 +939,13 @@ Sentence: {sentence}"""
                 self.session.flush()
 
                 # Store action values using raw SQL (Laravel-compatible structure)
-                for val in act.get('values', []):
-                    val_type, cont, cat = self._detect_value_type(val['value'])
-                    unit = self._detect_unit(val['value'])
+                for val in self._normalize_value_payloads(act.get('values', [])):
+                    value_text = val.get('value') or ''
+                    if not value_text:
+                        continue
+
+                    val_type, cont, cat = self._detect_value_type(value_text)
+                    unit = self._detect_unit(value_text)
                     
                     # Use raw SQL to insert into fact_values table (Laravel compatible)
                     insert_query = text("""
@@ -817,9 +990,13 @@ Sentence: {sentence}"""
             self.session.flush()
 
             # Store values using raw SQL (Laravel-compatible structure)
-            for val in fact.get('values', []):
-                val_type, cont, cat = self._detect_value_type(val['value'])
-                unit = self._detect_unit(val['value'])
+            for val in self._normalize_value_payloads(fact.get('values', [])):
+                value_text = val.get('value') or ''
+                if not value_text:
+                    continue
+
+                val_type, cont, cat = self._detect_value_type(value_text)
+                unit = self._detect_unit(value_text)
                 
                 # Use raw SQL to insert into fact_values table (Laravel compatible)
                 insert_query = text("""

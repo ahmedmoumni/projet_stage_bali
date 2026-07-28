@@ -270,6 +270,31 @@
   text-decoration: underline;
 }
 
+.knowledge-rules-table-condition,
+.knowledge-rules-table-action {
+  max-width: 320px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.knowledge-rules-fact-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.25rem;
+  align-items: baseline;
+}
+
+.knowledge-rules-fact-logic {
+  color: #1f2937;
+  font-weight: 700;
+  margin-right: 0.35rem;
+}
+
+.knowledge-rules-fact-text {
+  color: #334155;
+}
+
 .knowledge-rules-table-badge {
   display: inline-block;
   padding: 0.35rem 0.75rem;

@@ -151,53 +151,119 @@
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
 }
 
-/* Table */
-.pending-review-table-wrapper {
+/* Two-column panels */
+.pending-review-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.pending-review-panel {
   background: white;
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 1.5rem;
+  overflow: hidden;
 }
 
-.pending-review-table {
-  width: 100%;
-  border-collapse: collapse;
+.pending-review-panel-header {
+  background: #f8fafc;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.pending-review-table thead {
-  background: #f3f4f6;
-  border-bottom: 2px solid #e5e7eb;
+.pending-review-panel-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #0f172a;
 }
 
-.pending-review-table th {
+.pending-review-panel-body {
   padding: 1rem;
-  text-align: left;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #374151;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.pending-review-table tbody tr {
-  border-bottom: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
-}
-
-.pending-review-table tbody tr:hover {
-  background: #f9fafb;
-}
-
-.pending-review-table td {
+.pending-review-item-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   padding: 1rem;
-  font-size: 0.9rem;
-  color: #374151;
 }
 
-.pending-review-cell-id {
-  font-weight: 600;
+.pending-review-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.pending-review-item-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pending-review-item-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.pending-review-item-source {
+  font-size: 0.95rem;
+  color: #334155;
+  margin: 0 0 0.75rem 0;
+}
+
+.pending-review-details-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.pending-review-details-section {
+  margin-bottom: 0.5rem;
+}
+
+.pending-review-details-section h4 {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.9rem;
   color: #0284c7;
+}
+
+.pending-review-details-section ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.pending-review-details-section li {
+  margin-bottom: 0.25rem;
+  color: #334155;
+}
+
+.pending-review-details-section p {
+  margin: 0;
+  color: #334155;
+}
+
+.pending-review-item-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.pending-review-empty-card {
+  text-align: center;
+  color: #64748b;
+  padding: 1rem;
+  background: white;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
 }
 
 .pending-review-type-badge {
@@ -218,13 +284,6 @@
   color: #134e4a;
 }
 
-.pending-review-cell-text {
-  max-width: 300px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .pending-review-domain-unclassified {
   display: inline-block;
   padding: 0.35rem 0.75rem;
@@ -235,19 +294,10 @@
   font-weight: 600;
 }
 
-.pending-review-cell-confidence {
-  font-weight: 500;
-  color: #0284c7;
-}
-
-.pending-review-cell-date {
-  color: #9ca3af;
-  font-size: 0.85rem;
-}
-
-.pending-review-cell-actions {
-  display: flex;
-  gap: 0.5rem;
+@media (max-width: 1024px) {
+  .pending-review-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pending-review-btn-approve,

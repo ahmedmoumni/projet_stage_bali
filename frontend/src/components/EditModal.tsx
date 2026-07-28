@@ -29,12 +29,22 @@ export const EditModal: React.FC<EditModalProps> = ({
   const [sourceText, setSourceText] = useState('');
   const [domain, setDomain] = useState<Domain | null>(null);
   const [visibility, setVisibility] = useState<'public' | 'private'>('private');
+  const [conditionText, setConditionText] = useState('');
+  const [actionText, setActionText] = useState('');
+  const [subjectText, setSubjectText] = useState('');
+  const [relationText, setRelationText] = useState('');
+  const [valuesText, setValuesText] = useState('');
 
   useEffect(() => {
     if (item) {
       setSourceText(item.source_text || '');
       setDomain(item.domain || null);
       setVisibility(item.visibility || 'private');
+      setConditionText((item.conditions || []).map((c: any) => `${c.subject} ${c.operator} ${c.values?.map((v: any) => v.value_categorical ?? v.value_continuous).filter(Boolean).join(', ')}`).join('\n'));
+      setActionText((item.actions || []).map((a: any) => `${a.subject} ${a.operator} ${a.values?.map((v: any) => v.value_categorical ?? v.value_continuous).filter(Boolean).join(', ')}`).join('\n'));
+      setSubjectText(item.subject || '');
+      setRelationText(item.relation || '');
+      setValuesText((item.values || []).map((v: any) => v.value_categorical ?? v.value_continuous).filter(Boolean).join(', '));
     }
   }, [item]);
 
@@ -63,16 +73,63 @@ export const EditModal: React.FC<EditModalProps> = ({
         </div>
 
         <div className="edit-modal-body">
-          <div className="edit-modal-field">
-            <label className="edit-modal-label">Source Text</label>
-            <textarea
-              className="edit-modal-textarea"
-              value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-              rows={6}
-              disabled={isLoading}
-            />
-          </div>
+          {item.type === 'rule' ? (
+            <>
+              <div className="edit-modal-field">
+                <label className="edit-modal-label">Conditions</label>
+                <textarea
+                  className="edit-modal-textarea"
+                  value={conditionText}
+                  onChange={(e) => setConditionText(e.target.value)}
+                  rows={4}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="edit-modal-field">
+                <label className="edit-modal-label">Actions</label>
+                <textarea
+                  className="edit-modal-textarea"
+                  value={actionText}
+                  onChange={(e) => setActionText(e.target.value)}
+                  rows={4}
+                  disabled={isLoading}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="edit-modal-field">
+                <label className="edit-modal-label">Subject</label>
+                <input
+                  className="edit-modal-textarea"
+                  value={subjectText}
+                  onChange={(e) => setSubjectText(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="edit-modal-field">
+                <label className="edit-modal-label">Relation</label>
+                <input
+                  className="edit-modal-textarea"
+                  value={relationText}
+                  onChange={(e) => setRelationText(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="edit-modal-field">
+                <label className="edit-modal-label">Values</label>
+                <input
+                  className="edit-modal-textarea"
+                  value={valuesText}
+                  onChange={(e) => setValuesText(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            </>
+          )}
 
           <div className="edit-modal-field">
             <label className="edit-modal-label">Domain</label>

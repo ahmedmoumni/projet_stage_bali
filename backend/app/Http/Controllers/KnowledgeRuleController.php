@@ -11,8 +11,9 @@ class KnowledgeRuleController extends Controller
     {
         $user = $request->user();
         
-        $query = KnowledgeRule::query();
-        $query->where('status', 'validated');
+        // Eager-load nested fact values so frontend can display values for each condition/action
+        $query = KnowledgeRule::with(['conditionFacts.factValues', 'actionFacts.factValues']);
+        $query->whereIn('status', ['validated', 'pending_review']);
         
         if (!$user || $user->role === 'public') {
             $query->where('visibility', 'public');

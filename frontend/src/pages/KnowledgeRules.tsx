@@ -66,12 +66,77 @@ export const KnowledgeRules: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path ? 'active' : '';
 
-  // Truncate text with ellipsis
-  const truncateText = (text: string, maxLength: number) => {
-    if (text.length > maxLength) {
-      return text.substring(0, maxLength) + '...';
+  const getFacts = (rule: KnowledgeRule, key: 'conditionFacts' | 'condition_facts' | 'actionFacts' | 'action_facts') => {
+    return (rule as any)[key] ?? [];
+  };
+
+  const extractValues = (fact: any) => {
+    const values = (fact.factValues ?? fact.fact_values) || [];
+    return values
+      .map((v: any) => {
+        if (v.value_type === 'continuous') {
+          return v.unit ? `${v.value_continuous}${v.unit}` : `${v.value_continuous}`;
+        }
+
+        const value = v.value_categorical ?? '';
+        if (!value) {
+          return '';
+        }
+
+        const normalizedUnit = v.unit ? v.unit.toString().toLowerCase() : '';
+        const normalizedValue = value.toString().toLowerCase();
+
+        if (normalizedUnit && normalizedValue.includes(normalizedUnit)) {
+          return value;
+        }
+
+        return v.unit ? `${value} ${v.unit}` : value;
+      })
+      .filter(Boolean)
+      .join(', ');
+  };
+
+  const formatFact = (fact: any) => {
+    const valuesText = extractValues(fact);
+    const parts = [];
+
+    if (fact.subject) {
+      parts.push(fact.subject);
     }
-    return text;
+
+    if (fact.operator) {
+      parts.push(fact.operator);
+    }
+
+    if (valuesText) {
+      parts.push(valuesText);
+    }
+
+    return parts.join(' ').trim();
+  };
+
+  const uniqueFacts = (facts: Array<any>) => {
+    const seen = new Set<string>();
+    return facts.filter((fact) => {
+      const text = formatFact(fact);
+      if (!text || seen.has(text)) {
+        return false;
+      }
+      seen.add(text);
+      return true;
+    });
+  };
+
+  const renderFactLines = (facts: Array<any>) => {
+    const distinctFacts = uniqueFacts(facts);
+    return distinctFacts.map((fact: any, index: number) => (
+      <div className="knowledge-rules-fact-line" key={`${formatFact(fact)}-${index}`}>
+        {index > 0 && fact.logical_operator ? (
+          <span className="knowledge-rules-fact-logic">{fact.logical_operator}</span>
+        ) : null}
+        <span className="knowledge-rules-fact-text">{formatFact(fact)}</span>
+      </div>
+    ));
   };
 
   // Format date
@@ -165,7 +230,7 @@ export const KnowledgeRules: React.FC = () => {
                 <label>Search</label>
                 <input
                   type="text"
-                  placeholder="Search by source text..."
+                  placeholder="Search rules..."
                   value={search}
                   onChange={(e) => {
                     setSearch(e.target.value);
@@ -251,7 +316,8 @@ export const KnowledgeRules: React.FC = () => {
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Source Text</th>
+                    <th>Condition</th>
+                    <th>Action</th>
                     <th>Domain</th>
                     <th>Visibility</th>
                     <th>Status</th>
@@ -263,8 +329,11 @@ export const KnowledgeRules: React.FC = () => {
                   {rules.map((rule, index) => (
                     <tr key={rule.id} onClick={() => setSelectedRule(rule)} style={{backgroundColor: index % 2 === 0 ? '#ffffff' : '#f9fafb'}}>
                       <td className="knowledge-rules-table-id">{rule.id}</td>
-                      <td className="knowledge-rules-table-source" title={rule.source_text}>
-                        {truncateText(rule.source_text, 60)}
+                      <td className="knowledge-rules-table-condition">
+                        {renderFactLines(getFacts(rule, 'conditionFacts').length ? getFacts(rule, 'conditionFacts') : getFacts(rule, 'condition_facts'))}
+                      </td>
+                      <td className="knowledge-rules-table-action">
+                        {renderFactLines(getFacts(rule, 'actionFacts').length ? getFacts(rule, 'actionFacts') : getFacts(rule, 'action_facts'))}
                       </td>
                       <td>
                         <DomainBadge domain={rule.domain} />
@@ -338,11 +407,45 @@ export const KnowledgeRules: React.FC = () => {
 
           {/* Content */}
           <div className="knowledge-rules-drawer-content">
-            {/* Source Text */}
+            {/* Conditions */}
             <div className="knowledge-rules-drawer-field">
-              <div className="knowledge-rules-drawer-label">Source Text</div>
+              <div className="knowledge-rules-drawer-label">Conditions</div>
               <div className="knowledge-rules-drawer-value">
-                {selectedRule.source_text}
+                {((selectedRule.conditionFacts ?? selectedRule.condition_facts) || []).length > 0 ? (
+                  <ul style={{ paddingLeft: '1rem', margin: 0 }}>
+                    {((selectedRule.conditionFacts ?? selectedRule.condition_facts) || []).map((condition: any, index: number) => (
+                      <li key={condition.id}>
+                        {index > 0 && condition.logical_operator ? (
+                          <strong>{condition.logical_operator} </strong>
+                        ) : null}
+                        {condition.subject} {condition.operator}{extractValues(condition) ? ` ${extractValues(condition)}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  'No conditions available.'
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="knowledge-rules-drawer-field">
+              <div className="knowledge-rules-drawer-label">Actions</div>
+              <div className="knowledge-rules-drawer-value">
+                {((selectedRule.actionFacts ?? selectedRule.action_facts) || []).length > 0 ? (
+                  <ul style={{ paddingLeft: '1rem', margin: 0 }}>
+                    {((selectedRule.actionFacts ?? selectedRule.action_facts) || []).map((action: any, index: number) => (
+                      <li key={action.id}>
+                        {index > 0 && action.logical_operator ? (
+                          <strong>{action.logical_operator} </strong>
+                        ) : null}
+                        {action.subject} {action.operator}{extractValues(action) ? ` ${extractValues(action)}` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  'No actions available.'
+                )}
               </div>
             </div>
 
