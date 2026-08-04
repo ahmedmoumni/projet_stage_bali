@@ -109,6 +109,11 @@ export const Dashboard = () => {
                   Upload
                 </a>
               </li>
+              <li className="dashboard-sidebar-item">
+                <a href="/upload-csv" className={`dashboard-sidebar-link ${isActive('/upload-csv')}`}>
+                  Rule Discovery
+                </a>
+              </li>
             </>
           )}
         </ul>

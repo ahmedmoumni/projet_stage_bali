@@ -141,6 +141,11 @@ export const Upload: React.FC = () => {
                   Upload
                 </a>
               </li>
+              <li className="upload-sidebar-item">
+                <a href="/upload-csv" className={`upload-sidebar-link ${isActive('/upload-csv')}`}>
+                  Rule Discovery
+                </a>
+              </li>
             </>
           )}
         </ul>

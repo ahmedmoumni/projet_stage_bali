@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
-import type { AuthResponse, LoginRequest, RegisterRequest, UploadResponse, DocumentListResponse, DocumentDetailResponse, KnowledgeRule, KnowledgeFact, PaginatedResponse, PendingItem, EditPayload } from '../types/index';
+import type { AuthResponse, LoginRequest, RegisterRequest, UploadResponse, DocumentListResponse, DocumentDetailResponse, KnowledgeRule, KnowledgeFact, PaginatedResponse, PendingItem, EditPayload, DiscoverResponse } from '../types/index';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -90,6 +90,22 @@ export const documentAPI = {
 
   get: (id: number) =>
     api.get<DocumentDetailResponse>(`/documents/${id}`),
+};
+
+export const pipeline3API = {
+  discover: (file: File, subjectColumn: string, targetColumn: string, featureColumns: string[]) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('subject_column', subjectColumn);
+    formData.append('target_column', targetColumn);
+    formData.append('feature_columns', featureColumns.join(','));
+
+    return api.post<DiscoverResponse>('/pipeline3/discover', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
 };
 
 // Knowledge Rules endpoints

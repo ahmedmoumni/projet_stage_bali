@@ -5,6 +5,7 @@ import { Login } from './pages/Login';
 import { SignUp } from './pages/SignUp';
 import { Dashboard } from './pages/Dashboard';
 import { Upload } from './pages/Upload';
+import { UploadCSV } from './pages/UploadCSV';
 import { KnowledgeRules } from './pages/KnowledgeRules';
 import { KnowledgeFacts } from './pages/KnowledgeFacts';
 import { PendingReview } from './pages/PendingReview';
@@ -31,6 +32,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Upload />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/upload-csv"
+            element={
+              <ProtectedRoute>
+                <UploadCSV />
               </ProtectedRoute>
             }
           />

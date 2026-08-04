@@ -1,0 +1,126 @@
+.upload-card--wide {
+  width: 100%;
+  max-width: 950px;
+}
+
+.upload-card-header {
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+
+.upload-card-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  color: #0f172a;
+}
+
+.upload-card-header p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.upload-dropzone {
+  display: block;
+  border: 2px dashed #93c5fd;
+  border-radius: 14px;
+  padding: 2rem;
+  text-align: center;
+  background: #f8fbff;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.upload-dropzone:hover {
+  background: #eff6ff;
+}
+
+.upload-file-input {
+  display: none;
+}
+
+.upload-dropzone-subtitle {
+  margin-top: 0.5rem;
+  color: #475569;
+}
+
+.upload-section {
+  margin-top: 2rem;
+}
+
+.upload-table-container {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+
+.upload-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.upload-table th,
+.upload-table td {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.upload-table th {
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 600;
+}
+
+.upload-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.upload-column-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1rem;
+  background: #ffffff;
+}
+
+.upload-column-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.upload-select {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #0f172a;
+}
+
+.upload-column-samples {
+  margin-top: 0.85rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.upload-summary {
+  margin-top: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.upload-results ul {
+  margin: 0.75rem 0 0 1rem;
+  padding: 0;
+  list-style: disc;
+  color: #334155;
+}
+
+.upload-results li {
+  margin-bottom: 0.5rem;
+}

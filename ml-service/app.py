@@ -8,6 +8,8 @@ import traceback
 from pipeline0.router import route_document
 from pipeline1 import extract_pipeline1, init_db
 from pipeline2 import train_pipeline2, classify_pipeline2, classify_and_update
+from pipeline3 import discover_rules_from_csv, store_rules
+from pipeline3.rule_extractor import RuleDiscoveryError
 
 load_dotenv()
 
@@ -32,6 +34,11 @@ CORS(app, resources={
         "allow_headers": ["Content-Type", "Authorization"]
     },
     r"/pipeline2/*": {
+        "origins": [os.getenv("LARAVEL_URL", "http://localhost:8000")],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    },
+    r"/pipeline3/*": {
         "origins": [os.getenv("LARAVEL_URL", "http://localhost:8000")],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
@@ -171,6 +178,66 @@ def knowledge_extraction():
             'rules_extracted': 0,
             'facts_extracted': 0,
             'log': [f'❌ Server error: {str(e)}']
+        }, 500
+
+
+@app.route('/pipeline3/discover', methods=['POST'])
+def discover_rules_from_csv_endpoint():
+    """Pipeline 3: Discover IF-THEN rules from tabular CSV data using a Decision Tree."""
+    try:
+        if 'file' not in request.files:
+            return {
+                'rules_discovered': 0,
+                'algorithm': 'decision_tree',
+                'log': ['❌ No file provided'],
+            }, 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return {
+                'rules_discovered': 0,
+                'algorithm': 'decision_tree',
+                'log': ['❌ No file selected'],
+            }, 400
+
+        subject_column = (request.form.get('subject_column') or '').strip()
+        target_column = (request.form.get('target_column') or '').strip()
+        feature_columns = [item.strip() for item in (request.form.get('feature_columns') or '').split(',') if item.strip()]
+
+        if not subject_column or not target_column or not feature_columns:
+            return {
+                'rules_discovered': 0,
+                'algorithm': 'decision_tree',
+                'log': ['❌ subject_column, target_column, and feature_columns are required'],
+            }, 400
+
+        discovery_result = discover_rules_from_csv(file, subject_column, target_column, feature_columns)
+        storage_result = store_rules(discovery_result['rules'], discovery_result['filename'], target_column)
+
+        discovery_result['rules_discovered'] = storage_result['stored_rules']
+        discovery_result['log'].append(f"✅ All rules stored in MySQL ({storage_result['stored_rules']} rules)")
+
+        try:
+            classification_result = classify_and_update()
+            discovery_result['pipeline2_result'] = classification_result
+            discovery_result['log'].append('✅ Pipeline 2 triggered for domain classification')
+        except Exception as exc:
+            discovery_result['log'].append(f"⚠️ Pipeline 2 classification skipped: {str(exc)}")
+
+        return discovery_result, 200
+
+    except RuleDiscoveryError as exc:
+        return {
+            'rules_discovered': 0,
+            'algorithm': 'decision_tree',
+            'log': [f'❌ {exc}'],
+        }, 400
+    except Exception as exc:
+        traceback.print_exc()
+        return {
+            'rules_discovered': 0,
+            'algorithm': 'decision_tree',
+            'log': [f'❌ Server error: {exc}'],
         }, 500
 
 

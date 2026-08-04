@@ -44,6 +44,18 @@ export type FileType = 'pdf_native' | 'pdf_scanned' | 'csv' | 'excel';
 export type RoutingType = 'rejected' | 'pipeline1' | 'pipeline2_direct' | 'ocr_then_pipeline1';
 export type Visibility = 'public' | 'private';
 
+export interface CSVColumn {
+  name: string;
+  role: 'subject' | 'target' | 'feature' | 'ignore';
+  samples: string[];
+}
+
+export interface DiscoverResponse {
+  rules_discovered: number;
+  algorithm: string;
+  log: string[];
+}
+
 export interface UploadResponse {
   file_type?: FileType;
   routing?: RoutingType;
